@@ -1,0 +1,129 @@
+.dashboard-container {
+    @apply min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900;
+  }
+  
+  .dashboard-header {
+    @apply fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800;
+  }
+  
+  .dashboard-main {
+    @apply pt-20 min-h-screen;
+  }
+  
+  .dashboard-content {
+    @apply container mx-auto px-4 py-8 flex flex-col lg:flex-row gap-8;
+  }
+  
+  .dashboard-sidebar {
+    @apply lg:w-80 space-y-6;
+  }
+  
+  .dashboard-main-content {
+    @apply flex-1;
+  }
+  
+  /* Card Styles */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200;
+  }
+  
+  .card-header {
+    @apply p-6 border-b border-gray-200 dark:border-gray-700;
+  }
+  
+  .card-content {
+    @apply p-6;
+  }
+  
+  /* Avatar Styles */
+  .avatar {
+    @apply ring-2 ring-purple-100 dark:ring-purple-900;
+  }
+  
+  /* Button Styles */
+  .button {
+    @apply transition-all duration-200 hover:shadow-sm;
+  }
+  
+  /* Switch Styles */
+  .switch {
+    @apply data-[state=checked]:bg-purple-600 dark:data-[state=checked]:bg-purple-400;
+  }
+  
+  /* Select Styles */
+  select {
+    @apply bg-transparent border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-800;
+  }
+  
+  /* Activity Timeline */
+  .activity-timeline {
+    @apply relative pl-8 before:absolute before:left-0 before:top-0 before:h-full before:w-0.5 before:bg-purple-100 dark:before:bg-purple-900;
+  }
+  
+  .activity-item {
+    @apply relative mb-4 last:mb-0;
+  }
+  
+  .activity-dot {
+    @apply absolute -left-[1.625rem] h-3 w-3 rounded-full bg-purple-600 dark:bg-purple-400;
+  }
+  
+  /* Stats Grid */
+  .stats-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+  }
+  
+  /* Widget Card */
+  .widget-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200;
+  }
+  
+  /* Settings Panel */
+  .settings-panel {
+    @apply bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700;
+  }
+  
+  .settings-item {
+    @apply flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 last:border-0;
+  }
+  
+  /* User Info Panel */
+  .user-info-panel {
+    @apply bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden;
+  }
+  
+  .user-info-header {
+    @apply p-6 border-b border-gray-200 dark:border-gray-700;
+  }
+  
+  .user-info-content {
+    @apply p-4 space-y-2;
+  }
+  
+  /* Responsive Adjustments */
+  @media (max-width: 1024px) {
+    .dashboard-sidebar {
+      @apply w-full;
+    }
+    
+    .dashboard-main-content {
+      @apply w-full;
+    }
+  }
+  
+  /* Navbar Styles */
+  .navbar-container {
+    @apply container mx-auto px-4 h-16 flex justify-between items-center;
+  }
+  
+  .navbar-logo {
+    @apply text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent;
+  }
+  
+  .navbar-link {
+    @apply text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors font-medium;
+  }
+  
+  .navbar-button {
+    @apply bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-500 dark:hover:bg-purple-600;
+  } 
