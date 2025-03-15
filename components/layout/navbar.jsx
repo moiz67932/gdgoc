@@ -3,9 +3,27 @@
 import { motion } from "framer-motion"
 import { Button } from "../ui/button"
 import { User } from "lucide-react"
+import  signup  from "@/components/sections/signup";
+import { useState } from "react";
+
 import Link from "next/link"
 
+import { supabase } from "@/lib/supabase/client";
+
+// const checkConnection = async () => {
+//   const { data, error } = await supabase.from("users").select("*");
+
+//   if (error) {
+//     console.error("Supabase error:", error.message);
+//   } else {
+//     console.log("✅ Supabase connected:", data);
+//   }
+// };
+
+// checkConnection();
+
 export function Navbar() {
+  const [showSignup, setShowSignup] = useState(false);
   const navItems = [
     { name: "Features", href: "#features" },
     { name: "How It Works", href: "#how-it-works" },
@@ -56,12 +74,12 @@ export function Navbar() {
             <User className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </motion.div>
         </Link>
-        <Button
-          variant="default"
-          className="bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-500 dark:hover:bg-purple-600 rounded-full px-6"
-        >
+        <Link href="/signup">
+        <Button className="bg-purple-600 hover:bg-purple-700 text-white rounded-full px-6">
           Sign Up
         </Button>
+      
+      </Link>
       </motion.div>
     </nav>
   )
