@@ -1,21 +1,25 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Navbar } from "@/components/layout/navbar"
-import { UserInfoPanel } from "@/components/features/user-portal/user-info-panel"
-import { DashboardWidgets } from "@/components/features/user-portal/dashboard-widgets"
-import { SettingsPanel } from "@/components/features/user-portal/settings-panel"
-import "@/styles/dashboard.css"
+import { useState, useEffect } from "react";
+import { Navbar } from "@/components/layout/navbar";
+import { UserInfoPanel } from "@/components/features/user-portal/user-info-panel";
+import { DashboardWidgets } from "@/components/features/user-portal/dashboard-widgets";
+import { SettingsPanel } from "@/components/features/user-portal/settings-panel";
+import "@/styles/dashboard.css";
 
 export default function DashboardPage() {
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+    document.body.classList.add("dark"); // Enforce dark mode
+    return () => {
+      document.body.classList.add("dark"); // Ensure dark mode is not removed
+    };
+  }, []);
 
   if (!mounted) {
-    return null
+    return null;
   }
 
   return (
@@ -35,5 +39,5 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
-  )
-} 
+  );
+}
