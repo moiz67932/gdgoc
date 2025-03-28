@@ -8,15 +8,17 @@ export default function RootLayout({ children }) {
           content="AI-powered conversation environment for people with autism to improve communication skills"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <main className="min-h-screen">
+          {children}
+        </main>
+      </body>
     </html>
   )
 }
 
-
-
 import './globals.css'
 
 export const metadata = {
-      generator: 'v0.dev'
-    };
+  generator: 'v0.dev'
+};
