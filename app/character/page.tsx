@@ -34,11 +34,6 @@ function Model({ url, animation }: ModelProps) {
   const { scene, animations } = useGLTF(url)
   const { actions, mixer } = useAnimations(animations, group)
 
-  // Debug available animations
-  useEffect(() => {
-    console.log("Available animations:", Object.keys(actions))
-  }, [actions])
-
   // Apply animation when it changes
   useEffect(() => {
     if (!actions || !animation || !mixer) return
@@ -46,10 +41,10 @@ function Model({ url, animation }: ModelProps) {
     // Stop all current animations
     mixer.stopAllAction()
 
-    // Try to find the exact animation first
+    // Find the best matching animation
     let action = actions[animation]
     
-    // If not found, try to find a partial match
+    // If exact match not found, try partial match
     if (!action) {
       const actionName = Object.keys(actions).find(name => 
         name.toLowerCase().includes(animation.toLowerCase())
@@ -57,24 +52,58 @@ function Model({ url, animation }: ModelProps) {
       if (actionName) action = actions[actionName]
     }
 
-    // If we found an animation, play it
+    // If we found an animation, play it with crossfading
     if (action) {
+      // Cross fade between animations for smoother transitions
       action
         .reset()
         .setEffectiveTimeScale(1)
         .setEffectiveWeight(1)
-        .fadeIn(0.5)
+        .fadeIn(0.2)
         .play()
+
+      // Add looping for continuous animations
+      if (animation !== 'idle') {
+        action.loop = THREE.LoopRepeat
+      } else {
+        action.loop = THREE.LoopOnce
+      }
+    } else {
+      console.warn(`No animation found for: ${animation}`)
     }
 
     return () => {
+      if (action) {
+        action.fadeOut(0.2)
+      }
       mixer.stopAllAction()
     }
   }, [animation, actions, mixer])
 
+  // Update mixer in animation frame
+  useEffect(() => {
+    let animationFrameId: number
+
+    const animate = (time: number) => {
+      mixer?.update(0.01)
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    animationFrameId = requestAnimationFrame(animate)
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+    }
+  }, [mixer])
+
   return (
     <group ref={group}>
-      <primitive object={scene} scale={2} position={[0, -1, 0]} rotation={[0, 0, 0]} />
+      <primitive 
+        object={scene} 
+        scale={2} 
+        position={[0, -1, 0]} 
+        rotation={[0, 0, 0]} 
+      />
     </group>
   )
 }
@@ -155,13 +184,13 @@ export default function CharacterPage() {
               <CardContent className="p-0">
                 <Tabs defaultValue="controls" value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className="w-full grid grid-cols-3 bg-black/60">
-                    <TabsTrigger value="controls">Animations</TabsTrigger>
+                    {/* <TabsTrigger value="controls">Animations</TabsTrigger> */}
                     <TabsTrigger value="characters">Characters</TabsTrigger>
                     <TabsTrigger value="info">Info</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="controls" className="p-6 space-y-4">
-                    <h2 className="text-2xl font-semibold mb-4 text-purple-300">Animation Controls</h2>
+                    {/* <h2 className="text-2xl font-semibold mb-4 text-purple-300">Animation Controls</h2>
                     <div className="grid grid-cols-2 gap-4">
                       {(["idle", "walk", "run", "jump"] as AnimationState[]).map((anim) => (
                         <Button
@@ -177,7 +206,7 @@ export default function CharacterPage() {
                           {anim.charAt(0).toUpperCase() + anim.slice(1)}
                         </Button>
                       ))}
-                    </div>
+                    </div> */}
 
                     <div className="mt-4 p-3 bg-purple-900/30 rounded-lg border border-purple-500/30">
                       <p className="text-sm text-purple-200">
@@ -222,15 +251,15 @@ export default function CharacterPage() {
                         </span>
                         Scroll to zoom in/out
                       </li>
-                      <li className="flex items-start">
+                      {/* <li className="flex items-start">
                         <span className="inline-block h-5 w-5 rounded-full bg-purple-500/20 text-purple-400 text-center mr-2">
                           3
                         </span>
                         Use the animation controls to change animations
-                      </li>
+                      </li> */}
                       <li className="flex items-start">
                         <span className="inline-block h-5 w-5 rounded-full bg-purple-500/20 text-purple-400 text-center mr-2">
-                          4
+                          3
                         </span>
                         Select different characters from the menu
                       </li>
