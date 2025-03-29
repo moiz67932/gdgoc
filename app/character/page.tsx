@@ -118,26 +118,10 @@ function Model({ url, animation }: ModelProps) {
 
 // Available characters
 const characters = [
-  {
-    id: "goku",
-    name: "Goku SSJ4",
-    url: "https://gdgoc-seven.vercel.app/goku_ssj4.glb",
-  },
-  {
-    id: "vegeta",
-    name: "Vegeta",
-    url: "https://gdgoc-seven.vercel.app/vegeta.glb",
-  },
-  {
-    id: "naruto",
-    name: "Naruto",
-    url: "https://gdgoc-seven.vercel.app/naruto.glb",
-  },
-  {
-    id: "luffy",
-    name: "Luffy",
-    url: "https://gdgoc-seven.vercel.app/luffy.glb",
-  },
+  { id: "goku", name: "Goku SSJ4", url: "/goku_ssj4.glb" },
+  { id: "vegeta", name: "Vegeta", url: "/vegeta.glb" },
+  { id: "naruto", name: "Naruto", url: "/naruto.glb" },
+  { id: "luffy", name: "Luffy", url: "/luffy.glb" },
 ] as const;
 
 type AnimationState = "idle" | "walk" | "run" | "jump";
