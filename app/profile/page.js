@@ -22,11 +22,11 @@ export default function ProfilePage() {
     e.preventDefault()
     // TODO: Implement Supabase update
     console.log("Profile updated:", user)
-    router.push("/dashboard")
+    router.push("/profile/dashboard")
   }
 
   const handleCancel = () => {
-    router.push("/dashboard")
+    router.push("/profile/dashboard")
   }
 
   return (
