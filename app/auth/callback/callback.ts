@@ -10,5 +10,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Redirect to dashboard or homepage after login
-  return res.redirect("/dashboard");
+  return res.redirect("/profile/dashboard");
 }

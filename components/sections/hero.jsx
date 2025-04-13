@@ -7,7 +7,7 @@ export function HeroSection() {
   return (
     <section className="flex flex-col items-center justify-center text-center py-20 relative">
       {/* Decorative stars */}
-      <div className="absolute top-10 left-1/4 w-2 h-2 bg-white rounded-full opacity-70"></div>
+      <div className="absolute top-10 left-1/4 w-2 h-2 bg-white rounded-full opacity-60"></div>
       <div className="absolute bottom-20 right-1/3 w-3 h-3 bg-white rounded-full opacity-50"></div>
       <div className="absolute top-40 right-1/4 w-1 h-1 bg-white rounded-full opacity-60"></div>
 

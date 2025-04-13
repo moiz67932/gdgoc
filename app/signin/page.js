@@ -33,7 +33,7 @@ export default function Signin() {
       if (error) throw error
 
       console.log("Sign-in Success:", data)
-      router.push("/dashboard")
+      router.push("/profile/dashboard")
     } catch (error) {
       console.error("Sign-in Error:", error.message)
       setError(error.message)
@@ -53,7 +53,7 @@ export default function Signin() {
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/dashboard` },
+        options: { redirectTo: `${window.location.origin}/profile/dashboard` },
       })
 
       if (error) throw error
