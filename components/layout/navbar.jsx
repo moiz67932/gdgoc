@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { Button } from "../ui/button"
-import { User } from "lucide-react"
+import { User, Trophy } from "lucide-react"
 import Link from "next/link"
 import { MobileNav } from "./mobile-navbar"
 import { navItems } from "./nav-items"
@@ -49,6 +49,14 @@ export function Navbar() {
           transition={{ duration: 0.5 }}
           className="flex items-center space-x-4"
         >
+          <Link href="/levels">
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              className="p-2 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
+            >
+              <Trophy className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            </motion.div>
+          </Link>
           <Link href="/profile/dashboard">
             <motion.div
               whileHover={{ scale: 1.1 }}
