@@ -1,48 +1,65 @@
-"use client";
-
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useGLTF, Html } from "@react-three/drei";
 
 interface NPCProps {
   index: number;
   url: string;
-  isSpeaking: boolean;
-  emotionScore: number; // Range: 0 = angry (red), 1 = happy (green)
+  isSpeaking?: boolean;
+  emotionScore?: number;
 }
 
 export default function NPC({
   index,
   url,
-  isSpeaking,
-  emotionScore,
+  isSpeaking: initialSpeaking = false,
+  emotionScore: initialScore = 0.5,
 }: NPCProps) {
   const { scene } = useGLTF(url);
+  const [audio] = useState(() => new Audio("/audio/char1.mp3"));
+  const [isSpeaking, setIsSpeaking] = useState(initialSpeaking);
+  const [emotionScore, setEmotionScore] = useState(initialScore);
+
+  useEffect(() => {
+    // Reset speaking status when audio ends
+    const handleEnded = () => setIsSpeaking(false);
+    audio.addEventListener("ended", handleEnded);
+
+    return () => {
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, [audio]);
 
   const radius = 3.15;
   const spreadFactor = 1.1;
   const centerOffset = 2;
   const angle = ((index - centerOffset) * Math.PI) / (5 * spreadFactor);
-
   const x = radius * Math.sin(angle);
   const z = 3.5 - radius * Math.cos(angle);
 
   const color = `hsl(${emotionScore * 120}, 100%, 50%)`;
 
-  // Determine emoji based on emotionScore
   let moodEmoji = "😐";
-  if (emotionScore < 0.2) {
-    moodEmoji = "😡";
-  } else if (emotionScore < 0.5) {
-    moodEmoji = "😟";
-  } else if (emotionScore < 0.75) {
-    moodEmoji = "🙂";
-  } else {
-    moodEmoji = "😄";
-  }
+  if (emotionScore < 0.2) moodEmoji = "😡";
+  else if (emotionScore < 0.5) moodEmoji = "😟";
+  else if (emotionScore < 0.75) moodEmoji = "🙂";
+  else moodEmoji = "😄";
+
+  const handleClick = () => {
+    setIsSpeaking(true); // always set to true on click
+    const newScore = Math.random();
+    setEmotionScore(newScore);
+    audio.currentTime = 0;
+    audio.play();
+  };
 
   return (
-    <group position={[x, 0, z]} rotation={[0, -angle, 0]}>
-      {/* Character model */}
+    <group
+      position={[x, 0, z]}
+      rotation={[0, -angle, 0]}
+      onClick={handleClick}
+      onPointerOver={() => (document.body.style.cursor = "pointer")}
+      onPointerOut={() => (document.body.style.cursor = "default")}
+    >
       <primitive object={scene} scale={0.85} />
 
       {/* Speaker Icon */}
@@ -54,9 +71,9 @@ export default function NPC({
             background: "white",
             borderRadius: "50%",
             border: "2px solid #333",
-            transition: "transform 0.3s ease, box-shadow 0.3s ease",
             transform: isSpeaking ? "scale(1.5)" : "scale(1)",
             boxShadow: isSpeaking ? "0 0 10px #00f" : "none",
+            transition: "all 0.3s ease",
           }}
         />
       </Html>
@@ -78,7 +95,7 @@ export default function NPC({
               width: `${emotionScore * 100}%`,
               height: "100%",
               backgroundColor: color,
-              transition: "width 0.5s ease, background-color 0.5s ease",
+              transition: "all 0.5s ease",
             }}
           />
         </div>

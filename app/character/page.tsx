@@ -48,13 +48,7 @@ export default function CharacterScene() {
 
         <Suspense fallback={null}>
           {characterFiles.map((url, i) => (
-            <NPC
-              key={i}
-              index={i}
-              url={url}
-              isSpeaking={i === 1}
-              emotionScore={i * 0.25}
-            />
+            <NPC key={i} index={i} url={url} emotionScore={i * 0.25} />
           ))}
         </Suspense>
 
@@ -77,7 +71,6 @@ export default function CharacterScene() {
     </div>
   );
 }
-
 // "use client";
 
 // import { Canvas } from "@react-three/fiber";
