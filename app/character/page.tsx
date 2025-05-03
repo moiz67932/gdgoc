@@ -3,6 +3,7 @@
 import React, { Suspense, useRef, useState, useEffect } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { PointerLockControls } from "@react-three/drei";
+import { PerspectiveCamera } from "three";
 import * as THREE from "three";
 import NPC from "./component/NPC";
 import Room from "./component/Room";
@@ -125,6 +126,42 @@ export function RaycastSelector({
   return null;
 }
 
+function RightClickZoom() {
+  const { camera } = useThree();
+  const perspectiveCamera = camera as PerspectiveCamera; // Type assertion
+
+  const targetFov = useRef(perspectiveCamera.fov);
+  const zoomedFov = 30;
+  const normalFov = 75;
+  const isRightMouseDown = useRef(false);
+
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 2) isRightMouseDown.current = true;
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (e.button === 2) isRightMouseDown.current = false;
+    };
+
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  useFrame(() => {
+    targetFov.current = isRightMouseDown.current ? zoomedFov : normalFov;
+    perspectiveCamera.fov += (targetFov.current - perspectiveCamera.fov) * 0.1;
+    perspectiveCamera.updateProjectionMatrix();
+  });
+
+  return null;
+}
+
 export default function CharacterScene() {
   const [selectedCharacter, setSelectedCharacter] =
     useState<CharacterInfo | null>(null);
@@ -165,6 +202,7 @@ export default function CharacterScene() {
           setHovered={setHoveredCharacter}
           setSpeakingCharacter={setSpeakingCharacter}
         />
+        <RightClickZoom />
       </Canvas>
 
       {/* Crosshair */}
