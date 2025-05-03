@@ -8,6 +8,8 @@ interface NPCProps {
   name: string;
   description: string;
   emotionScore?: number;
+  lookAtCenter?: boolean;
+  isSpeaking?: boolean;
 }
 
 export default function NPC({
@@ -16,13 +18,15 @@ export default function NPC({
   name,
   description,
   emotionScore: initialScore = 0.5,
+  lookAtCenter = true,
+  isSpeaking = false,
 }: NPCProps) {
   const { scene } = useGLTF(url);
   const groupRef = useRef<Group>(null);
   const [emotionScore] = useState(initialScore);
 
-  const radius = 3.15;
-  const spreadFactor = 1.1;
+  const radius = 2.15;
+  const spreadFactor = 0.9;
   const centerOffset = 2;
   const angle = ((index - centerOffset) * Math.PI) / (6.1 * spreadFactor);
   const x = radius * Math.sin(angle);
@@ -36,16 +40,25 @@ export default function NPC({
   else if (emotionScore < 0.75) moodEmoji = "🙂";
   else moodEmoji = "😄";
 
+  let rotationY = 0;
+  if (index === 0) rotationY = Math.PI / 2; // Slightly turned right
+  else if (index === 1) rotationY = Math.PI / 4; // Less turned right
+  else if (index === 2) rotationY = 0; // Facing front
+  else if (index === 3) rotationY = -Math.PI / 4; // Slightly turned left
+  else if (index === 4) rotationY = -Math.PI / 2; // More turned left
+
   return (
     <group
       ref={groupRef}
-      name={name} // Needed for raycast detection
-      userData={{ name, description }} // store description
+      name={name}
+      userData={{ name, description }}
       position={[x, 0, z]}
-      rotation={[0, -angle, 0]}
+      // rotation={lookAtCenter ? [0, Math.atan2(-x, -z), 0] : [0, -angle, 0]}
+      rotation={[0, rotationY, 0]}
     >
       <group position={[0, 0, 0]}>
-        <primitive object={scene} scale={0.85} />
+        {/* <primitive object={scene} scale={0.85} castShadow /> */}
+        <primitive object={scene} scale={0.85} castShadow />
       </group>
 
       <group position={[0, 1.6, 0]}>
@@ -57,6 +70,7 @@ export default function NPC({
               background: "white",
               borderRadius: "50%",
               border: "2px solid #333",
+              animation: isSpeaking ? "pulse 1s infinite" : "none",
             }}
           />
         </Html>
@@ -82,7 +96,7 @@ export default function NPC({
           </div>
         </Html>
 
-        <Html position={[0, 0.4, 0]} center>
+        <Html position={[0, 0.3, 0]} center>
           <div style={{ fontSize: "24px" }}>{moodEmoji}</div>
         </Html>
       </group>
@@ -90,6 +104,7 @@ export default function NPC({
   );
 }
 
+// Preload the models
 useGLTF.preload("/models/char1.glb");
 useGLTF.preload("/models/char2.glb");
 useGLTF.preload("/models/char3.glb");
