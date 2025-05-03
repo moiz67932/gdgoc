@@ -183,19 +183,40 @@ export default function NPC({
         <primitive object={scene} scale={0.85} />
       </group>
 
-      <group position={[0, 1.6, 0]}>
-        <Html center>
-          <div
-            style={{
-              width: "16px",
-              height: "16px",
-              background: "white",
-              borderRadius: "50%",
-              border: "2px solid #333",
-              animation: isSpeaking ? "pulse 1s infinite" : "none",
-            }}
-          />
-        </Html>
+      <group position={[0, 1.8, 0]}>
+      <Html center>
+  <div
+    className="speaker-dot"
+    style={{
+      width: 20,               // base size (px)
+      height: 20,
+      borderRadius: "50%",
+      border: "2px solid #333",
+      background: "#fff",
+      /* start with no glow; the animation adds it */
+      boxShadow: isSpeaking ? "0 0 60px 20px rgba(0,128,255,0.8)" : "none",
+      animation: isSpeaking
+        ? "dotScale 0.8s ease-in-out infinite, glowPulse 0.8s ease-in-out infinite"
+        : "none",
+    }}
+  />
+
+  <style>{`
+    /* scale the dot itself */
+    @keyframes dotScale {
+      0%, 100% { transform: scale(1);   }
+      50%      { transform: scale(1.6); }
+    }
+
+    /* amplify the blue halo */
+    @keyframes glowPulse {
+      0%, 100% { box-shadow: 0 0 20px  8px rgba(0,128,255,0.7); }
+      50%      { box-shadow: 0 0 80px 32px rgba(0,128,255,1);  }
+    }
+  `}</style>
+</Html>
+
+
 
         <Html position={[0, 0.2, 0]} center>
           <div

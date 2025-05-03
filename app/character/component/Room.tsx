@@ -25,5 +25,5 @@ export default function Room() {
     }
   });
 
-  return <primitive object={scene} scale={1.5} position={[-3, -2, -2]} />;
+  return <primitive object={scene} scale={0.85} position={[-12, -0.15, -4] }  rotation={[0, 80, 0]}/>;
 }
