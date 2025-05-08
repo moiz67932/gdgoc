@@ -1,36 +1,53 @@
 "use client";
 
-import React, {
-  Suspense,
-  useRef,
-  useEffect,
-  useState,
-  useMemo,
-} from "react";
+import React, { Suspense, useRef, useEffect, useState, useMemo } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { PointerLockControls } from "@react-three/drei";
+import { Html, PointerLockControls } from "@react-three/drei";
 import { PerspectiveCamera } from "three";
-import {
-  EffectComposer,
-  Autofocus,
-} from "@react-three/postprocessing";
+import { EffectComposer, Autofocus } from "@react-three/postprocessing";
 import * as THREE from "three";
-import NPC   from "./component/NPC";
-import Room  from "./component/Room";
+import NPC from "./component/NPC";
+import Room from "./component/Room";
+import ChatBox from "./component/ChatBox";
 
 /* ------------------------------------------------------------------ */
 /*                              DATA                                  */
 /* ------------------------------------------------------------------ */
 
 const characterData = [
-  { url: "/models/char1.glb", name: "Alice",   description: "Team Leader",  audio: "/audio/char1.mp3" },
-  { url: "/models/char2.glb", name: "Bob",     description: "Engineer",    audio: "/audio/char2.mp3" },
-  { url: "/models/char3.glb", name: "Charlie", description: "Designer",    audio: "/audio/char3.mp3" },
-  { url: "/models/char4.glb", name: "Diana",   description: "Analyst",     audio: "/audio/char4.mp3" },
-  { url: "/models/char5.glb", name: "Eve",     description: "Strategist",  audio: "/audio/char5.mp3" },
+  {
+    url: "/models/char1.glb",
+    name: "Alice",
+    description: "Team Leader",
+    audio: "/audio/char1.mp3",
+  },
+  {
+    url: "/models/char2.glb",
+    name: "Bob",
+    description: "Engineer",
+    audio: "/audio/char2.mp3",
+  },
+  {
+    url: "/models/char3.glb",
+    name: "Charlie",
+    description: "Designer",
+    audio: "/audio/char3.mp3",
+  },
+  {
+    url: "/models/char4.glb",
+    name: "Diana",
+    description: "Analyst",
+    audio: "/audio/char4.mp3",
+  },
+  {
+    url: "/models/char5.glb",
+    name: "Eve",
+    description: "Strategist",
+    audio: "/audio/char5.mp3",
+  },
 ];
 
-const charNameSet = new Set(characterData.map(c => c.name));
+const charNameSet = new Set(characterData.map((c) => c.name));
 type CharacterInfo = { name: string; description: string };
 
 /* ------------------------------------------------------------------ */
@@ -43,12 +60,12 @@ function RaycastSelector({
   setSpeakingCharacter,
 }: {
   setSelected: (d: CharacterInfo | null) => void;
-  setHovered:  (d: CharacterInfo | null) => void;
+  setHovered: (d: CharacterInfo | null) => void;
   setSpeakingCharacter: (n: string | null) => void;
 }) {
   const { camera, scene } = useThree();
   const raycaster = useRef(new THREE.Raycaster());
-  const mouse     = useMemo(() => new THREE.Vector2(0, 0), []);
+  const mouse = useMemo(() => new THREE.Vector2(0, 0), []);
 
   /* --------------------  HOVER  -------------------- */
   useFrame(() => {
@@ -60,7 +77,7 @@ function RaycastSelector({
       while (cur) {
         const nm = cur.userData?.name;
         if (nm && charNameSet.has(nm)) {
-          const meta = characterData.find(c => c.name === nm)!;
+          const meta = characterData.find((c) => c.name === nm)!;
           setHovered({ name: meta.name, description: meta.description });
           return;
         }
@@ -81,7 +98,7 @@ function RaycastSelector({
         while (cur) {
           const nm = cur.userData?.name;
           if (nm && charNameSet.has(nm)) {
-            const meta = characterData.find(c => c.name === nm)!;
+            const meta = characterData.find((c) => c.name === nm)!;
 
             const audio = new Audio(meta.audio);
             audio.play();
@@ -110,20 +127,22 @@ function RaycastSelector({
 
 function RightClickZoom() {
   const { camera } = useThree();
-  const cam           = camera as PerspectiveCamera;
-  const targetFov     = useRef(cam.fov);
-  const zoomFov       = 30;
-  const normalFov     = 75;
-  const rightIsDown   = useRef(false);
+  const cam = camera as PerspectiveCamera;
+  const targetFov = useRef(cam.fov);
+  const zoomFov = 30;
+  const normalFov = 75;
+  const rightIsDown = useRef(false);
 
   useEffect(() => {
-    const down = (e: MouseEvent) => e.button === 2 && (rightIsDown.current = true);
-    const up   = (e: MouseEvent) => e.button === 2 && (rightIsDown.current = false);
+    const down = (e: MouseEvent) =>
+      e.button === 2 && (rightIsDown.current = true);
+    const up = (e: MouseEvent) =>
+      e.button === 2 && (rightIsDown.current = false);
     window.addEventListener("mousedown", down);
-    window.addEventListener("mouseup",   up);
+    window.addEventListener("mouseup", up);
     return () => {
       window.removeEventListener("mousedown", down);
-      window.removeEventListener("mouseup",   up);
+      window.removeEventListener("mouseup", up);
     };
   }, []);
 
@@ -133,7 +152,7 @@ function RightClickZoom() {
     cam.updateProjectionMatrix();
   });
 
-  return null;
+  return;
 }
 
 /* ------------------------------------------------------------------ */
@@ -160,8 +179,66 @@ function PostFX() {
 
 export default function CharacterScene() {
   const [selected, setSelected] = useState<CharacterInfo | null>(null);
-  const [hovered,  setHovered ] = useState<CharacterInfo | null>(null);
+  const [hovered, setHovered] = useState<CharacterInfo | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
+  // Message State
+  const [chatMessages, setChatMessages] = useState<
+    { name: string; text: string }[]
+  >([]);
+
+  /* ------------------------------------------------------------------ */
+  /*                         MESSAGE HANDLING                           */
+  /* ------------------------------------------------------------------ */
+
+  function handleSendMessage(
+    message: string,
+    setChatMessages: React.Dispatch<
+      React.SetStateAction<{ name: string; text: string }[]>
+    >,
+    setSpeaking: React.Dispatch<React.SetStateAction<string | null>>
+  ) {
+    // Add the user's message to the chat
+    setChatMessages((prev) => [...prev, { name: "User", text: message }]);
+
+    // Make the API call
+    fetch("http://localhost:5000/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`API error: ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        const responseText = data.response;
+        const [npcSpeaker, npcMessage] = responseText.split(": ");
+
+        // Add the NPC's response to the chat
+        setChatMessages((prev) => [
+          ...prev,
+          { name: npcSpeaker, text: npcMessage },
+        ]);
+
+        // Play the NPC's audio if available
+        const npcData = characterData.find((c) => c.name === npcSpeaker);
+        if (npcData) {
+          const audio = new Audio(npcData.audio);
+          setSpeaking(npcSpeaker);
+          audio.play();
+          audio.addEventListener("ended", () => setSpeaking(null));
+        }
+      })
+      .catch((error) => {
+        console.error("Error sending message:", error);
+        setChatMessages((prev) => [
+          ...prev,
+          { name: "System", text: "Failed to fetch response from the server." },
+        ]);
+      });
+  }
 
   return (
     <div className="w-screen h-screen relative select-none">
@@ -189,7 +266,7 @@ export default function CharacterScene() {
         {/* assets ---------------------------------------------------- */}
         <Suspense fallback={null}>
           <Room receiveShadow />
-          {characterData.map((c, i) => (
+          {/* {characterData.map((c, i) => (
             <NPC
               key={c.name}
               index={i}
@@ -202,7 +279,61 @@ export default function CharacterScene() {
               receiveShadow
               lookAtCenter
             />
-          ))}
+          ))} */}
+
+          {/* {characterData.map((c, i) => {
+            const message = chatMessages.find((m) => m.name === c.name)?.text;
+
+            return (
+              <group key={c.name}>
+                <NPC
+                  index={i}
+                  url={c.url}
+                  name={c.name}
+                  description={c.description}
+                  emotionScore={i * 0.25}
+                  isSpeaking={c.name === speaking}
+                  castShadow
+                  receiveShadow
+                  lookAtCenter
+                />
+                {message && (
+                  <Html position={[0, -1, 0]} center distanceFactor={10}>
+                    <div className="bg-white/70 text-black px-2 py-1 rounded-md shadow-md text-sm">
+                      {message}
+                    </div>
+                  </Html>
+                )}
+              </group>
+            );
+          })} */}
+
+          {characterData.map((c, i) => {
+            const message = chatMessages.find((m) => m.name === c.name)?.text;
+
+            return (
+              <group key={c.name}>
+                <NPC
+                  index={i}
+                  url={c.url}
+                  name={c.name}
+                  description={c.description}
+                  emotionScore={i * 0.25}
+                  isSpeaking={c.name === speaking}
+                  castShadow
+                  receiveShadow
+                  lookAtCenter
+                />
+                {message && (
+                  <Html position={[0, -1, 0]} center distanceFactor={10}>
+                    <div className="bg-white/70 text-black px-2 py-1 rounded-md shadow-md text-sm">
+                      {message}
+                    </div>
+                  </Html>
+                )}
+              </group>
+            );
+          })}
         </Suspense>
 
         {/* helpers --------------------------------------------------- */}
@@ -221,15 +352,29 @@ export default function CharacterScene() {
 
       {/* info card --------------------------------------------------- */}
       {(() => {
-        const info = selected ?? hovered;   // selected takes precedence
+        const info = selected ?? hovered; // selected takes precedence
         return info ? (
-          <div className="absolute top-4 left-4 w-64 p-4 rounded-md bg-white/30 backdrop-blur
-                          border border-white/50 text-white shadow-lg z-50">
+          <div
+            className="absolute top-4 left-4 w-64 p-4 rounded-md bg-white/30 backdrop-blur
+                          border border-white/50 text-white shadow-lg z-50"
+          >
             <h2 className="font-bold text-lg">{info.name}</h2>
             <p className="text-sm">{info.description}</p>
           </div>
         ) : null;
       })()}
+
+      {/* <ChatBox
+        onSend={handleSendMessage}
+        isRecording={false} // Add recording state if needed
+        onRecordToggle={() => alert("Recording feature to be implemented")}
+      /> */}
+      <ChatBox
+        messages={chatMessages} // Pass the chat messages to the ChatBox
+        onSend={(msg) => handleSendMessage(msg, setChatMessages, setSpeaking)}
+        isRecording={false}
+        onRecordToggle={() => alert("Recording feature to be implemented")}
+      />
     </div>
   );
 }
