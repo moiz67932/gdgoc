@@ -1,6 +1,7 @@
-// import React, { useState, useRef } from "react";
+// import React, { useState, useRef, useEffect } from "react";
 // import { useGLTF, Html } from "@react-three/drei";
 // import { Group } from "three";
+// import * as THREE from "three";
 
 // interface NPCProps {
 //   index: number;
@@ -25,6 +26,16 @@
 //   const groupRef = useRef<Group>(null);
 //   const [emotionScore] = useState(initialScore);
 
+//   // Enable shadows on NPC model
+//   useEffect(() => {
+//     scene.traverse((child) => {
+//       if ((child as THREE.Mesh).isMesh) {
+//         child.castShadow = true;
+//         child.receiveShadow = true;
+//       }
+//     });
+//   }, [scene]);
+
 //   const radius = 2.15;
 //   const spreadFactor = 0.9;
 //   const centerOffset = 2;
@@ -41,11 +52,11 @@
 //   else moodEmoji = "😄";
 
 //   let rotationY = 0;
-//   if (index === 0) rotationY = Math.PI / 2; // Slightly turned right
-//   else if (index === 1) rotationY = Math.PI / 4; // Less turned right
-//   else if (index === 2) rotationY = 0; // Facing front
-//   else if (index === 3) rotationY = -Math.PI / 4; // Slightly turned left
-//   else if (index === 4) rotationY = -Math.PI / 2; // More turned left
+//   if (index === 0) rotationY = Math.PI / 2;
+//   else if (index === 1) rotationY = Math.PI / 4;
+//   else if (index === 2) rotationY = 0;
+//   else if (index === 3) rotationY = -Math.PI / 4;
+//   else if (index === 4) rotationY = -Math.PI / 2;
 
 //   return (
 //     <group
@@ -53,26 +64,45 @@
 //       name={name}
 //       userData={{ name, description }}
 //       position={[x, 0, z]}
-//       // rotation={lookAtCenter ? [0, Math.atan2(-x, -z), 0] : [0, -angle, 0]}
 //       rotation={[0, rotationY, 0]}
 //     >
 //       <group position={[0, 0, 0]}>
-//         {/* <primitive object={scene} scale={0.85} castShadow /> */}
-//         <primitive object={scene} scale={0.85} castShadow />
+//         <primitive object={scene} scale={0.85} />
 //       </group>
 
-//       <group position={[0, 1.6, 0]}>
+//       <group position={[0, 1.8, 0]}>
 //         <Html center>
 //           <div
+//             className="speaker-dot"
 //             style={{
-//               width: "16px",
-//               height: "16px",
-//               background: "white",
+//               width: 20, // base size (px)
+//               height: 20,
 //               borderRadius: "50%",
 //               border: "2px solid #333",
-//               animation: isSpeaking ? "pulse 1s infinite" : "none",
+//               background: "#fff",
+//               /* start with no glow; the animation adds it */
+//               boxShadow: isSpeaking
+//                 ? "0 0 60px 20px rgba(0,128,255,0.8)"
+//                 : "none",
+//               animation: isSpeaking
+//                 ? "dotScale 0.8s ease-in-out infinite, glowPulse 0.8s ease-in-out infinite"
+//                 : "none",
 //             }}
 //           />
+
+//           <style>{`
+//     /* scale the dot itself */
+//     @keyframes dotScale {
+//       0%, 100% { transform: scale(1);   }
+//       50%      { transform: scale(1.6); }
+//     }
+
+//     /* amplify the blue halo */
+//     @keyframes glowPulse {
+//       0%, 100% { box-shadow: 0 0 20px  8px rgba(0,128,255,0.7); }
+//       50%      { box-shadow: 0 0 80px 32px rgba(0,128,255,1);  }
+//     }
+//   `}</style>
 //         </Html>
 
 //         <Html position={[0, 0.2, 0]} center>
@@ -135,19 +165,27 @@ export default function NPC({
   lookAtCenter = true,
   isSpeaking = false,
 }: NPCProps) {
-  const { scene } = useGLTF(url);
+  // Safeguard if url is undefined or incorrect
+  const modelUrl = url || "";
+  const { scene } = useGLTF(modelUrl);
+
   const groupRef = useRef<Group>(null);
   const [emotionScore] = useState(initialScore);
 
   // Enable shadows on NPC model
   useEffect(() => {
+    if (!scene) {
+      console.error("Failed to load model at", modelUrl);
+      return;
+    }
+
     scene.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
-  }, [scene]);
+  }, [scene, modelUrl]);
 
   const radius = 2.15;
   const spreadFactor = 0.9;
@@ -184,39 +222,35 @@ export default function NPC({
       </group>
 
       <group position={[0, 1.8, 0]}>
-      <Html center>
-  <div
-    className="speaker-dot"
-    style={{
-      width: 20,               // base size (px)
-      height: 20,
-      borderRadius: "50%",
-      border: "2px solid #333",
-      background: "#fff",
-      /* start with no glow; the animation adds it */
-      boxShadow: isSpeaking ? "0 0 60px 20px rgba(0,128,255,0.8)" : "none",
-      animation: isSpeaking
-        ? "dotScale 0.8s ease-in-out infinite, glowPulse 0.8s ease-in-out infinite"
-        : "none",
-    }}
-  />
+        <Html center>
+          <div
+            className="speaker-dot"
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              border: "2px solid #333",
+              background: "#fff",
+              boxShadow: isSpeaking
+                ? "0 0 60px 20px rgba(0,128,255,0.8)"
+                : "none",
+              animation: isSpeaking
+                ? "dotScale 0.8s ease-in-out infinite, glowPulse 0.8s ease-in-out infinite"
+                : "none",
+            }}
+          />
+          <style>{`
+            @keyframes dotScale {
+              0%, 100% { transform: scale(1);   }
+              50%      { transform: scale(1.6); }
+            }
 
-  <style>{`
-    /* scale the dot itself */
-    @keyframes dotScale {
-      0%, 100% { transform: scale(1);   }
-      50%      { transform: scale(1.6); }
-    }
-
-    /* amplify the blue halo */
-    @keyframes glowPulse {
-      0%, 100% { box-shadow: 0 0 20px  8px rgba(0,128,255,0.7); }
-      50%      { box-shadow: 0 0 80px 32px rgba(0,128,255,1);  }
-    }
-  `}</style>
-</Html>
-
-
+            @keyframes glowPulse {
+              0%, 100% { box-shadow: 0 0 20px  8px rgba(0,128,255,0.7); }
+              50%      { box-shadow: 0 0 80px 32px rgba(0,128,255,1);  }
+            }
+          `}</style>
+        </Html>
 
         <Html position={[0, 0.2, 0]} center>
           <div

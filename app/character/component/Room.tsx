@@ -15,6 +15,7 @@ import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 export default function Room() {
+  // const { scene } = useGLTF("/models/landscape2.glb");
   const { scene } = useGLTF("/models/landscape5.glb");
 
   // Enable all meshes in the model to receive and cast shadows
@@ -25,5 +26,12 @@ export default function Room() {
     }
   });
 
-  return <primitive object={scene} scale={0.85} position={[-12, -0.15, -4] }  rotation={[0, 80, 0]}/>;
+  return (
+    <primitive
+      object={scene}
+      scale={0.85}
+      position={[-12, -0.15, -4]}
+      rotation={[0, 80, 0]}
+    />
+  );
 }

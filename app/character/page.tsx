@@ -9,6 +9,8 @@ import * as THREE from "three";
 import NPC from "./component/NPC";
 import Room from "./component/Room";
 import ChatBox from "./component/ChatBox";
+import Subtitle from "./component/Subtitle";
+import AISuggestionsBox from "./component/AiSuggestions";
 
 /* ------------------------------------------------------------------ */
 /*                              DATA                                  */
@@ -161,7 +163,7 @@ function RightClickZoom() {
 
 function PostFX() {
   return (
-    <EffectComposer multisampling={8} disableNormalPass>
+    <EffectComposer multisampling={8}>
       <Autofocus
         focalLength={0.1}
         bokehScale={3}
@@ -181,10 +183,49 @@ export default function CharacterScene() {
   const [selected, setSelected] = useState<CharacterInfo | null>(null);
   const [hovered, setHovered] = useState<CharacterInfo | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
+  // State for Subtitles
+  const [subtitleText, setSubtitleText] = useState<string>("");
   // Message State
   const [chatMessages, setChatMessages] = useState<
     { name: string; text: string }[]
   >([]);
+  // State for AI Suggestions
+  const [aiSuggestion, setAiSuggestion] = useState<string>("");
+  const [isSuggestionStreaming, setIsSuggestionStreaming] =
+    useState<boolean>(false);
+  const [isSuggestionBoxOpen, setIsSuggestionBoxOpen] = useState<boolean>(true);
+  const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{
+    x: number;
+    y: number;
+  }>({ x: 0, y: 0 });
+
+  // Dummy AI Suggestions Array
+  const dummySuggestions = [
+    "Have you considered using a different approach?",
+    "Try breaking the problem into smaller parts.",
+    "Focus on the key objectives first.",
+    "What if you approached this from another perspective?",
+    "Consider collaborating with others for fresh ideas.",
+  ];
+
+  useEffect(() => {
+    let suggestionIndex = 0;
+
+    const interval = setInterval(() => {
+      const npcMessage = dummySuggestions[suggestionIndex];
+      suggestionIndex = (suggestionIndex + 1) % dummySuggestions.length;
+
+      // Add AI suggestions
+      setAiSuggestion(npcMessage);
+      setIsSuggestionStreaming(true);
+      setTimeout(
+        () => setIsSuggestionStreaming(false),
+        npcMessage.length * 25 + 500
+      );
+    }, 8000); // Update every 8 seconds
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, []);
 
   /* ------------------------------------------------------------------ */
   /*                         MESSAGE HANDLING                           */
@@ -221,6 +262,17 @@ export default function CharacterScene() {
           ...prev,
           { name: npcSpeaker, text: npcMessage },
         ]);
+
+        // Line for Adding Text to Subtitles
+        setSubtitleText(npcMessage); // 🟡 Trigger subtitle here
+
+        // Add AI suggestions
+        setAiSuggestion(npcMessage);
+        setIsSuggestionStreaming(true);
+        setTimeout(
+          () => setIsSuggestionStreaming(false),
+          npcMessage.length * 25 + 500
+        );
 
         // Play the NPC's audio if available
         const npcData = characterData.find((c) => c.name === npcSpeaker);
@@ -266,48 +318,6 @@ export default function CharacterScene() {
         {/* assets ---------------------------------------------------- */}
         <Suspense fallback={null}>
           <Room receiveShadow />
-          {/* {characterData.map((c, i) => (
-            <NPC
-              key={c.name}
-              index={i}
-              url={c.url}
-              name={c.name}
-              description={c.description}
-              emotionScore={i * 0.25}
-              isSpeaking={c.name === speaking}
-              castShadow
-              receiveShadow
-              lookAtCenter
-            />
-          ))} */}
-
-          {/* {characterData.map((c, i) => {
-            const message = chatMessages.find((m) => m.name === c.name)?.text;
-
-            return (
-              <group key={c.name}>
-                <NPC
-                  index={i}
-                  url={c.url}
-                  name={c.name}
-                  description={c.description}
-                  emotionScore={i * 0.25}
-                  isSpeaking={c.name === speaking}
-                  castShadow
-                  receiveShadow
-                  lookAtCenter
-                />
-                {message && (
-                  <Html position={[0, -1, 0]} center distanceFactor={10}>
-                    <div className="bg-white/70 text-black px-2 py-1 rounded-md shadow-md text-sm">
-                      {message}
-                    </div>
-                  </Html>
-                )}
-              </group>
-            );
-          })} */}
-
           {characterData.map((c, i) => {
             const message = chatMessages.find((m) => m.name === c.name)?.text;
 
@@ -320,8 +330,6 @@ export default function CharacterScene() {
                   description={c.description}
                   emotionScore={i * 0.25}
                   isSpeaking={c.name === speaking}
-                  castShadow
-                  receiveShadow
                   lookAtCenter
                 />
                 {message && (
@@ -364,16 +372,24 @@ export default function CharacterScene() {
         ) : null;
       })()}
 
-      {/* <ChatBox
-        onSend={handleSendMessage}
-        isRecording={false} // Add recording state if needed
-        onRecordToggle={() => alert("Recording feature to be implemented")}
-      /> */}
+      {/* chat box --------------------------------------------------- */}
       <ChatBox
         messages={chatMessages} // Pass the chat messages to the ChatBox
         onSend={(msg) => handleSendMessage(msg, setChatMessages, setSpeaking)}
         isRecording={false}
         onRecordToggle={() => alert("Recording feature to be implemented")}
+      />
+      {/* subtitle --------------------------------------------------- */}
+      <Subtitle text="Hello Abdullah! This is a Demo Text for Captions. We have to Integrate AI Model in it. I have to connect it to local API first and we can test it there, then when it will be hosted on Google Cloud Console, we will just change the API endpoint. I hope that the format in which the data will returned by API remains same. What do You Say? Hmmmm" />
+
+      {/* AI suggestions box ---------------------------------------- */}
+      <AISuggestionsBox
+        suggestion={aiSuggestion}
+        isStreaming={isSuggestionStreaming}
+        isOpen={isSuggestionBoxOpen}
+        onToggleOpen={() => setIsSuggestionBoxOpen((prev) => !prev)}
+        position={suggestionBoxPosition}
+        onPositionChange={setSuggestionBoxPosition}
       />
     </div>
   );
