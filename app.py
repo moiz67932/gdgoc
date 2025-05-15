@@ -9,7 +9,7 @@ import re
 
 from memory.short_term   import add_to_short_term
 from memory.long_term    import init_vectorstore, add_to_long_term, search_long_term
-from memory.importance import is_important, llm_is_important  # if you’ll use the LLM fallback
+from memory.importance import is_important, llm_is_important  # if you'll use the LLM fallback
 from memory.utils_memory import Message
  
 
@@ -104,7 +104,7 @@ def generate_diverse_personality(name: str, topic: str, attempt: int = 0,
     if force_rude_personality:
         forced_traits = "rude, blunt, arrogant, self-centered"
         forced_tone = "harsh and unapologetically direct"
-        forced_attitude = "doesn’t care about others' opinions, focused solely on personal gain"
+        forced_attitude = "doesn't care about others' opinions, focused solely on personal gain"
     else:
         forced_traits = diversity_directions[direction_index]
         forced_tone = ""
@@ -510,6 +510,19 @@ def handle_user_message(user_message: str, emotion: Optional[str] = None) -> str
     )
 
     response = gemini_model.generate_content(prompt).text.strip()
+    print(f"Coach {speaker.name} response:", response)  # Log coach response
+
+    # Generate coach feedback
+    feedback_prompt = f"""
+    As a coach, provide brief feedback on the following conversation:
+    User: {user_message}
+    {speaker.name}: {response}
+    
+    Provide 2-3 bullet points of constructive feedback or suggestions.
+    Keep it concise and actionable.
+    """
+    feedback = gemini_model.generate_content(feedback_prompt).text.strip()
+    print("Coach feedback:", feedback)  # Log coach feedback
 
     # NPC emotion update hook (existing logic)
     if re.search(r'EMOTION_UPDATE:\s*yes', response, re.IGNORECASE):
@@ -528,7 +541,7 @@ def handle_user_message(user_message: str, emotion: Optional[str] = None) -> str
     if is_important(user_message):
         add_to_long_term(speaker.name, [response])
 
-    return f"{speaker.name}: {response}"
+    return f"{speaker.name}: {response}", feedback
 
 
     if speaker:
@@ -553,8 +566,11 @@ CORS(app)
 @app.route('/chat', methods=['POST'])
 def text_chat():
     user_message = request.json['message']
-    response_text = handle_user_message(user_message)
-    return jsonify({"response": response_text})
+    response_text, feedback = handle_user_message(user_message)
+    return jsonify({
+        "response": response_text,
+        "feedback": feedback
+    })
 
 @app.route('/voice_chat', methods=['POST'])
 def voice_chat():
@@ -605,6 +621,7 @@ def idle():
         for speaker in speakers:
             prompt = build_prompt(speaker, last_text, conversation, last_speaker)
             response = gemini_model.generate_content(prompt).text.strip()
+            print(f"Coach {speaker.name} idle response:", response)  # Log coach response
             conversation.append({"speaker": speaker.name, "text": response})
             speaker.last_spoken = current_turn
             update_relationship(speaker, last_speaker, response)
@@ -616,6 +633,7 @@ def idle():
         for npc in sorted_npcs:
             if npc.name != last_speaker:
                 nudge = generate_nudge(npc)
+                print(f"Coach {npc.name} nudge:", nudge)  # Log coach nudge
                 conversation.append({"speaker": npc.name, "text": nudge})
                 npc.last_spoken = current_turn
                 current_turn += 1

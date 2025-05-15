@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useRef, useEffect, useState, useMemo } from "react";
+import React, { Suspense, useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Html, PointerLockControls } from "@react-three/drei";
 import { PerspectiveCamera } from "three";
@@ -10,46 +10,13 @@ import NPC from "./component/NPC";
 import Room from "./component/Room";
 import ChatBox from "./component/ChatBox";
 import Subtitle from "./component/Subtitle";
-import AISuggestionsBox from "./component/AiSuggestions";
+import ReactMarkdown from 'react-markdown';
 
 /* ------------------------------------------------------------------ */
 /*                              DATA                                  */
 /* ------------------------------------------------------------------ */
 
-const characterData = [
-  {
-    url: "/models/char1.glb",
-    name: "Alice",
-    description: "Team Leader",
-    audio: "/audio/char1.mp3",
-  },
-  {
-    url: "/models/char2.glb",
-    name: "Bob",
-    description: "Engineer",
-    audio: "/audio/char2.mp3",
-  },
-  {
-    url: "/models/char3.glb",
-    name: "Charlie",
-    description: "Designer",
-    audio: "/audio/char3.mp3",
-  },
-  {
-    url: "/models/char4.glb",
-    name: "Diana",
-    description: "Analyst",
-    audio: "/audio/char4.mp3",
-  },
-  {
-    url: "/models/char5.glb",
-    name: "Eve",
-    description: "Strategist",
-    audio: "/audio/char5.mp3",
-  },
-];
-
-const charNameSet = new Set(characterData.map((c) => c.name));
+const charNameSet = new Set();
 type CharacterInfo = { name: string; description: string };
 
 /* ------------------------------------------------------------------ */
@@ -79,8 +46,8 @@ function RaycastSelector({
       while (cur) {
         const nm = cur.userData?.name;
         if (nm && charNameSet.has(nm)) {
-          const meta = characterData.find((c) => c.name === nm)!;
-          setHovered({ name: meta.name, description: meta.description });
+          const meta = { name: nm, description: "" };
+          setHovered(meta);
           return;
         }
         cur = cur.parent;
@@ -100,14 +67,15 @@ function RaycastSelector({
         while (cur) {
           const nm = cur.userData?.name;
           if (nm && charNameSet.has(nm)) {
-            const meta = characterData.find((c) => c.name === nm)!;
+            const meta = { name: nm, description: "" };
 
-            const audio = new Audio(meta.audio);
+            const audio = new Audio();
+            audio.src = nm.startsWith('/static') ? `http://localhost:5000${nm}` : nm;
             audio.play();
-            setSpeakingCharacter(meta.name);
+            setSpeakingCharacter(nm);
             audio.addEventListener("ended", () => setSpeakingCharacter(null));
 
-            setSelected({ name: meta.name, description: meta.description });
+            setSelected(meta);
             return;
           }
           cur = cur.parent;
@@ -154,7 +122,7 @@ function RightClickZoom() {
     cam.updateProjectionMatrix();
   });
 
-  return;
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -183,65 +151,105 @@ export default function CharacterScene() {
   const [selected, setSelected] = useState<CharacterInfo | null>(null);
   const [hovered, setHovered] = useState<CharacterInfo | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
-  // State for Subtitles
   const [subtitleText, setSubtitleText] = useState<string>("");
-  // Message State
-  const [chatMessages, setChatMessages] = useState<
-    { name: string; text: string }[]
-  >([]);
-  // State for AI Suggestions
-  const [aiSuggestion, setAiSuggestion] = useState<string>("");
-  const [isSuggestionStreaming, setIsSuggestionStreaming] =
-    useState<boolean>(false);
-  const [isSuggestionBoxOpen, setIsSuggestionBoxOpen] = useState<boolean>(true);
-  const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{
-    x: number;
-    y: number;
-  }>({ x: 0, y: 0 });
+  const [chatMessages, setChatMessages] = useState<{ name: string; text: string }[]>([]);
+  const [isTopicSelected, setIsTopicSelected] = useState<boolean>(false);
+  const [npcStates, setNpcStates] = useState<{ [name: string]: { lastLine?: string; emotion?: number } }>({});
+  const [playing, setPlaying] = useState<string | null>(null);
+  const [lastSpeaker, setLastSpeaker] = useState<string | null>(null);
+  const [npcNames, setNpcNames] = useState<string[]>([]);
+  const [characterData, setCharacterData] = useState<any[]>([]);
+  const [coachFeedback, setCoachFeedback] = useState<string>("");
+  const [topic, setTopic] = useState<string>("");
 
-  // Dummy AI Suggestions Array
-  const dummySuggestions = [
-    "Have you considered using a different approach?",
-    "Try breaking the problem into smaller parts.",
-    "Focus on the key objectives first.",
-    "What if you approached this from another perspective?",
-    "Consider collaborating with others for fresh ideas.",
-  ];
+  // HTML-style audio queue system
+  const queue = useRef<{ speaker: string; audio: string }[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    let suggestionIndex = 0;
+  const playNext = useCallback(() => {
+    if (queue.current.length === 0) {
+      audioRef.current = null;
+      setPlaying(null);
+      return;
+    }
+    const { speaker, audio } = queue.current[0];
+    setPlaying(speaker);
+    setLastSpeaker(speaker);
 
-    const interval = setInterval(() => {
-      const npcMessage = dummySuggestions[suggestionIndex];
-      suggestionIndex = (suggestionIndex + 1) % dummySuggestions.length;
+    // Always use backend static directory for audio
+    let audioUrl = audio;
+    if (audio && !audio.startsWith('http')) {
+      if (audio.startsWith('/static')) audioUrl = `http://localhost:5000${audio}`;
+      else if (audio.startsWith('static')) audioUrl = `http://localhost:5000/${audio}`;
+      else audioUrl = `http://localhost:5000/static/${audio}`;
+    }
 
-      // Add AI suggestions
-      setAiSuggestion(npcMessage);
-      setIsSuggestionStreaming(true);
-      setTimeout(
-        () => setIsSuggestionStreaming(false),
-        npcMessage.length * 25 + 500
-      );
-    }, 8000); // Update every 8 seconds
-
-    return () => clearInterval(interval); // Cleanup on unmount
+    const a = new Audio(audioUrl);
+    audioRef.current = a;
+    a.onended = () => {
+      queue.current.shift();
+      playNext();
+    };
+    a.play().catch(() => {
+      queue.current.shift();
+      playNext();
+    });
   }, []);
+
+  const enqueue = useCallback((speaker: string, obj: { text: string; audio?: string; emotion?: number }) => {
+    setNpcStates((prev) => ({
+      ...prev,
+      [speaker]: {
+        lastLine: obj.text,
+        emotion: obj.emotion !== undefined ? obj.emotion : prev[speaker]?.emotion,
+      },
+    }));
+    setLastSpeaker(speaker);
+    if (obj.audio) {
+      queue.current.push({ speaker, audio: obj.audio });
+      if (!audioRef.current) playNext();
+    }
+  }, [playNext]);
+
+  const clearQueue = useCallback(() => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    queue.current = [];
+    setPlaying(null);
+  }, []);
+
+  // Poll /idle every 3s for NPC responses and audio, and enqueue
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('http://localhost:5000/idle');
+        const data = await res.json();
+        console.log('IDLE RESPONSES:', data.responses); // Debug log
+        (data.responses || []).forEach((resp: { speaker: string; text: string; audio?: string; emotion?: number }) => {
+          const { speaker, text, audio, emotion } = resp;
+          console.log('Enqueue:', { speaker, text, audio, emotion }); // Debug log
+          
+          if (speaker === "Coach") {
+            setCoachFeedback(text);
+          } else {
+            enqueue(speaker, { text, audio, emotion });
+          }
+        });
+      } catch (e) {
+        // Optionally handle error
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [enqueue]);
 
   /* ------------------------------------------------------------------ */
   /*                         MESSAGE HANDLING                           */
   /* ------------------------------------------------------------------ */
 
-  function handleSendMessage(
-    message: string,
-    setChatMessages: React.Dispatch<
-      React.SetStateAction<{ name: string; text: string }[]>
-    >,
-    setSpeaking: React.Dispatch<React.SetStateAction<string | null>>
-  ) {
-    // Add the user's message to the chat
+  // Unified send handler for both text and voice
+  function handleSendMessage(message: string) {
+    if (!message.trim()) return;
     setChatMessages((prev) => [...prev, { name: "User", text: message }]);
-
-    // Make the API call
     fetch("http://localhost:5000/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -256,25 +264,23 @@ export default function CharacterScene() {
       .then((data) => {
         const responseText = data.response;
         const [npcSpeaker, npcMessage] = responseText.split(": ");
-
-        // Add the NPC's response to the chat
+        console.log("Coach Response:", { speaker: npcSpeaker, message: npcMessage });
+        
         setChatMessages((prev) => [
           ...prev,
           { name: npcSpeaker, text: npcMessage },
         ]);
-
-        // Line for Adding Text to Subtitles
-        setSubtitleText(npcMessage); // 🟡 Trigger subtitle here
-
-        // Add AI suggestions
-        setAiSuggestion(npcMessage);
-        setIsSuggestionStreaming(true);
-        setTimeout(
-          () => setIsSuggestionStreaming(false),
-          npcMessage.length * 25 + 500
-        );
-
-        // Play the NPC's audio if available
+        setSubtitleText(npcMessage);
+        
+        // Update both coach feedback and AI suggestion
+        if (data.feedback) {
+          setCoachFeedback(data.feedback);
+          setTimeout(
+            () => setCoachFeedback(""),
+            data.feedback.length * 25 + 500
+          );
+        }
+        
         const npcData = characterData.find((c) => c.name === npcSpeaker);
         if (npcData) {
           const audio = new Audio(npcData.audio);
@@ -287,110 +293,185 @@ export default function CharacterScene() {
         console.error("Error sending message:", error);
         setChatMessages((prev) => [
           ...prev,
-          { name: "System", text: "Failed to fetch response from the server." },
+          { name: "System", text: "Failed to send message. Please try again." },
         ]);
       });
   }
 
+  const handleTopicSubmit = () => {
+    if (!topic.trim()) return;
+    fetch("http://localhost:5000/topic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.status === "ok" && d.npcs) {
+          setIsTopicSelected(true);
+          setNpcNames(d.npcs);
+          // Assign a unique model and description to each NPC
+          const models = [
+            "/models/char1.glb",
+            "/models/char2.glb",
+            "/models/char3.glb",
+            "/models/char4.glb",
+            "/models/char5.glb",
+          ];
+          const descriptions = [
+            "Team Leader",
+            "Engineer",
+            "Designer",
+            "Analyst",
+            "Strategist",
+          ];
+          setCharacterData(
+            d.npcs.map((name: string, i: number) => ({
+              url: models[i % models.length],
+              name,
+              description: descriptions[i % descriptions.length],
+            }))
+          );
+          setChatMessages([{ name: "System", text: `Topic selected: ${topic}` }]);
+        }
+      })
+      .catch((error) => {
+        console.error("Error setting topic:", error);
+        alert("Failed to set topic. Please try again.");
+      });
+  };
+
+  if (!isTopicSelected) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-gray-900">
+        <div className="w-96 p-6 bg-gray-800 rounded-lg shadow-xl">
+          <h1 className="text-2xl font-semibold text-white mb-4">Choose a discussion topic</h1>
+          <input
+            className="w-full p-3 rounded bg-gray-700 text-white focus:outline-none mb-4"
+            placeholder="e.g. Overcoming stage fright"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleTopicSubmit()}
+          />
+          <button
+            onClick={handleTopicSubmit}
+            className="w-full px-6 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white"
+          >
+            Start
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-screen h-screen relative select-none">
-      <Canvas
-        shadows
-        camera={{ position: [0, 1.3, 3], fov: 75, near: 0.05, far: 200 }}
-        gl={{ antialias: true }}
-        style={{ background: "#87ceeb" }}
-      >
-        {/* lights ---------------------------------------------------- */}
-        <ambientLight intensity={0.3} />
-        <directionalLight
-          position={[5, 10, 5]}
-          intensity={1}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          shadow-camera-far={200}
-          shadow-camera-left={-15}
-          shadow-camera-right={15}
-          shadow-camera-top={15}
-          shadow-camera-bottom={-15}
-        />
+      <div className="absolute inset-0 z-0">
+        <Canvas
+          shadows
+          camera={{ position: [0, 1.3, 3], fov: 75, near: 0.05, far: 200 }}
+          gl={{ antialias: true }}
+          style={{ background: "#87ceeb" }}
+        >
+          {/* lights ---------------------------------------------------- */}
+          <ambientLight intensity={0.3} />
+          <directionalLight
+            position={[5, 10, 5]}
+            intensity={1}
+            castShadow
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+            shadow-camera-far={200}
+            shadow-camera-left={-15}
+            shadow-camera-right={15}
+            shadow-camera-top={15}
+            shadow-camera-bottom={-15}
+          />
 
-        {/* assets ---------------------------------------------------- */}
-        <Suspense fallback={null}>
-          <Room receiveShadow />
-          {characterData.map((c, i) => {
-            const message = chatMessages.find((m) => m.name === c.name)?.text;
+          {/* assets ---------------------------------------------------- */}
+          <Suspense fallback={null}>
+            <Room />
+            {characterData.map((c, i) => {
+              const npcState = npcStates[c.name] || {};
+              const isSpeaking = c.name === playing;
+              console.log('NPC Render:', c.name, 'isSpeaking:', isSpeaking, 'playing:', playing); // Debug log
+              return (
+                <group key={c.name}>
+                  <NPC
+                    index={i}
+                    url={c.url}
+                    name={c.name}
+                    description={c.description}
+                    emotionScore={npcState.emotion ?? i * 0.25}
+                    isSpeaking={isSpeaking}
+                    lastLine={npcState.lastLine}
+                    lookAtCenter
+                  />
+                </group>
+              );
+            })}
+          </Suspense>
 
-            return (
-              <group key={c.name}>
-                <NPC
-                  index={i}
-                  url={c.url}
-                  name={c.name}
-                  description={c.description}
-                  emotionScore={i * 0.25}
-                  isSpeaking={c.name === speaking}
-                  lookAtCenter
-                />
-                {message && (
-                  <Html position={[0, -1, 0]} center distanceFactor={10}>
-                    <div className="bg-white/70 text-black px-2 py-1 rounded-md shadow-md text-sm">
-                      {message}
-                    </div>
-                  </Html>
-                )}
-              </group>
-            );
-          })}
-        </Suspense>
+          {/* helpers --------------------------------------------------- */}
+          <PointerLockControls />
+          <RightClickZoom />
+          <RaycastSelector
+            setSelected={setSelected}
+            setHovered={setHovered}
+            setSpeakingCharacter={setSpeaking}
+          />
+          <PostFX />
+        </Canvas>
+      </div>
 
-        {/* helpers --------------------------------------------------- */}
-        <PointerLockControls />
-        <RightClickZoom />
-        <RaycastSelector
-          setSelected={setSelected}
-          setHovered={setHovered}
-          setSpeakingCharacter={setSpeaking}
-        />
-        <PostFX />
-      </Canvas>
+      {/* UI Elements */}
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        {/* crosshair --------------------------------------------------- */}
+        <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-white rounded-full -translate-x-1/2 -translate-y-1/2" />
 
-      {/* crosshair --------------------------------------------------- */}
-      <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 z-10" />
+        {/* info card --------------------------------------------------- */}
+        {(() => {
+          const info = selected ?? hovered; // selected takes precedence
+          return info ? (
+            <div
+              className="absolute top-4 left-4 w-64 p-4 rounded-md bg-white/30 backdrop-blur
+                            border border-white/50 text-white shadow-lg pointer-events-auto"
+            >
+              <h2 className="font-bold text-lg">{info.name}</h2>
+              <p className="text-sm">{info.description}</p>
+            </div>
+          ) : null;
+        })()}
 
-      {/* info card --------------------------------------------------- */}
-      {(() => {
-        const info = selected ?? hovered; // selected takes precedence
-        return info ? (
-          <div
-            className="absolute top-4 left-4 w-64 p-4 rounded-md bg-white/30 backdrop-blur
-                          border border-white/50 text-white shadow-lg z-50"
-          >
-            <h2 className="font-bold text-lg">{info.name}</h2>
-            <p className="text-sm">{info.description}</p>
+        {/* chat box --------------------------------------------------- */}
+        <div className="pointer-events-auto">
+          <ChatBox
+            messages={chatMessages}
+            onSend={(msg) => handleSendMessage(msg)}
+          />
+        </div>
+
+        {/* subtitle --------------------------------------------------- */}
+        <Subtitle text={subtitleText} />
+
+        {/* Coach feedback box */}
+        {coachFeedback && (
+          <div className="absolute right-0 top-20 m-4 w-72 bg-gray-800 rounded-lg p-4 text-sm shadow-lg pointer-events-auto">
+            <h2 className="font-semibold text-green-400 mb-2">Coach feedback</h2>
+            <ReactMarkdown
+              components={{
+                p: ({ node, ...props }) => <p className="mb-1" {...props} />,
+                strong: ({ node, ...props }) => <strong className="font-bold" {...props} />,
+                em: ({ node, ...props }) => <em className="italic" {...props} />,
+                ul: ({ node, ...props }) => <ul className="list-disc ml-4" {...props} />,
+                li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+              }}
+            >
+              {coachFeedback}
+            </ReactMarkdown>
           </div>
-        ) : null;
-      })()}
-
-      {/* chat box --------------------------------------------------- */}
-      <ChatBox
-        messages={chatMessages} // Pass the chat messages to the ChatBox
-        onSend={(msg) => handleSendMessage(msg, setChatMessages, setSpeaking)}
-        isRecording={false}
-        onRecordToggle={() => alert("Recording feature to be implemented")}
-      />
-      {/* subtitle --------------------------------------------------- */}
-      <Subtitle text="Hello Abdullah! This is a Demo Text for Captions. We have to Integrate AI Model in it. I have to connect it to local API first and we can test it there, then when it will be hosted on Google Cloud Console, we will just change the API endpoint. I hope that the format in which the data will returned by API remains same. What do You Say? Hmmmm" />
-
-      {/* AI suggestions box ---------------------------------------- */}
-      <AISuggestionsBox
-        suggestion={aiSuggestion}
-        isStreaming={isSuggestionStreaming}
-        isOpen={isSuggestionBoxOpen}
-        onToggleOpen={() => setIsSuggestionBoxOpen((prev) => !prev)}
-        position={suggestionBoxPosition}
-        onPositionChange={setSuggestionBoxPosition}
-      />
+        )}
+      </div>
     </div>
   );
 }

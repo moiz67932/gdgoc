@@ -117,14 +117,21 @@ export default function AISuggestionsBox({
           <div className="p-4 bg-gray-900 text-white min-h-[100px] max-h-[300px] overflow-y-auto">
             <div className="flex flex-col gap-3">
               <div className="inline-block max-w-[90%] p-3 rounded-xl bg-blue-600 text-sm">
-                {displayedText ||
-                  (isStreaming ? "|" : "Waiting for suggestions...")}
-                {isStreaming && currentIndex < suggestion.length && (
-                  <span className="animate-pulse ml-1">|</span>
+                {isStreaming && currentIndex < suggestion.length ? (
+                  <>
+                    {displayedText}
+                    <span className="animate-pulse ml-1">|</span>
+                  </>
+                ) : (
+                  <div className="mt-2 text-sm text-gray-300">
+                    {suggestion && suggestion.split(/\n+/).map((line, i) => (
+                      <p key={i} className="mb-1">• {line.replace(/^[-•]\s*/, '')}</p>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="text-xs text-gray-400 ml-1">
-                {isStreaming ? "Typing..." : displayedText ? "Delivered" : ""}
+                {isStreaming ? "Typing..." : suggestion ? "Delivered" : ""}
               </div>
             </div>
           </div>
