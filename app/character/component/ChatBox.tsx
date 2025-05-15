@@ -1,11 +1,21 @@
 import { useState, useEffect } from "react";
 
-export default function MicButton() {
+export default function MicButton({
+  clearQueue,
+  clearMessages,
+}: {
+  clearQueue?: () => void;
+  clearMessages?: () => void;
+}) {
   const [micOn, setMicOn] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const toggleMic = async (enable: boolean) => {
     setMicOn(enable);
+    if (enable) {
+      if (clearQueue) clearQueue();
+      if (clearMessages) clearMessages();
+    }
     await fetch("http://localhost:5000/voice", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

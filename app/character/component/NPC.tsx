@@ -119,8 +119,10 @@ export default function NPC({
 
         {/* Emotion bar and emoji */}
         <Html position={[0, 0.25, 0]} center>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: '22px', marginRight: 4 }}>{emojiFor(emotionScore)}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: "22px", marginRight: 4 }}>
+              {emojiFor(emotionScore)}
+            </span>
             <div
               style={{
                 width: "60px",
@@ -136,8 +138,10 @@ export default function NPC({
                 style={{
                   width: `${emotionScore * 100}%`,
                   height: "100%",
-                  backgroundColor: `hsl(${(1 - emotionScore) * 120}, 100%, 50%)`,
-                  transition: 'width 0.2s',
+                  backgroundColor: `hsl(${
+                    (1 - emotionScore) * 120
+                  }, 100%, 50%)`,
+                  transition: "width 0.2s",
                 }}
               />
             </div>
@@ -149,16 +153,20 @@ export default function NPC({
       {isSpeaking && lastLine && (
         <Html position={[0, 0.7, 0]} center distanceFactor={10}>
           <div
-            className="bg-white/70 text-black px-2 py-0.5 rounded-md shadow-md text-[8px] animate-pulse ring-4 ring-green-400"
+            className="bg-white/90 text-black px-1.5 py-0.5 rounded-md shadow-md text-[6px] font-[var(--font-poppins)]"
             style={{
-              border: "2px solid #333",
-              boxShadow: "0 0 60px 20px rgba(34,197,94,0.8)",
-              width: "160px",
-              minHeight: "16px",
+              border: "1px solid rgba(0,0,0,0.1)",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              width: "120px",
+              minHeight: "12px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               textAlign: "center",
+              fontWeight: 500,
+              letterSpacing: "0.01em",
+              lineHeight: "1.2",
+              backdropFilter: "blur(4px)",
             }}
           >
             {lastLine}

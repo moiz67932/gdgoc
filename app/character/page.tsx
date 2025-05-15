@@ -511,13 +511,20 @@ export default function CharacterScene() {
           ) : null;
         })()}
 
-        {/* chat box --------------------------------------------------- */}
-        <div className="pointer-events-auto">
-          <ChatBox />
-        </div>
-
         {/* subtitle --------------------------------------------------- */}
         <Subtitle text={subtitleText} />
+
+        {/* chat box --------------------------------------------------- */}
+        <div className="pointer-events-auto">
+          <ChatBox
+            clearQueue={clearQueue}
+            clearMessages={() => {
+              setChatMessages([]);
+              setSubtitleText("");
+              setCoachFeedback("");
+            }}
+          />
+        </div>
 
         {/* Coach feedback box */}
         {coachFeedback && (
