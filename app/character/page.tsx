@@ -1,6 +1,13 @@
 "use client";
 
-import React, { Suspense, useRef, useEffect, useState, useMemo, useCallback } from "react";
+import React, {
+  Suspense,
+  useRef,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Html, PointerLockControls } from "@react-three/drei";
 import { PerspectiveCamera } from "three";
@@ -10,7 +17,7 @@ import NPC from "./component/NPC";
 import Room from "./component/Room";
 import ChatBox from "./component/ChatBox";
 import Subtitle from "./component/Subtitle";
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown from "react-markdown";
 
 /* ------------------------------------------------------------------ */
 /*                              DATA                                  */
@@ -70,7 +77,9 @@ function RaycastSelector({
             const meta = { name: nm, description: "" };
 
             const audio = new Audio();
-            audio.src = nm.startsWith('/static') ? `http://localhost:5000${nm}` : nm;
+            audio.src = nm.startsWith("/static")
+              ? `http://localhost:5000${nm}`
+              : nm;
             audio.play();
             setSpeakingCharacter(nm);
             audio.addEventListener("ended", () => setSpeakingCharacter(null));
@@ -152,9 +161,13 @@ export default function CharacterScene() {
   const [hovered, setHovered] = useState<CharacterInfo | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
   const [subtitleText, setSubtitleText] = useState<string>("");
-  const [chatMessages, setChatMessages] = useState<{ name: string; text: string }[]>([]);
+  const [chatMessages, setChatMessages] = useState<
+    { name: string; text: string }[]
+  >([]);
   const [isTopicSelected, setIsTopicSelected] = useState<boolean>(false);
-  const [npcStates, setNpcStates] = useState<{ [name: string]: { lastLine?: string; emotion?: number } }>({});
+  const [npcStates, setNpcStates] = useState<{
+    [name: string]: { lastLine?: string; emotion?: number };
+  }>({});
   const [playing, setPlaying] = useState<string | null>(null);
   const [lastSpeaker, setLastSpeaker] = useState<string | null>(null);
   const [npcNames, setNpcNames] = useState<string[]>([]);
@@ -178,9 +191,11 @@ export default function CharacterScene() {
 
     // Always use backend static directory for audio
     let audioUrl = audio;
-    if (audio && !audio.startsWith('http')) {
-      if (audio.startsWith('/static')) audioUrl = `http://localhost:5000${audio}`;
-      else if (audio.startsWith('static')) audioUrl = `http://localhost:5000/${audio}`;
+    if (audio && !audio.startsWith("http")) {
+      if (audio.startsWith("/static"))
+        audioUrl = `http://localhost:5000${audio}`;
+      else if (audio.startsWith("static"))
+        audioUrl = `http://localhost:5000/${audio}`;
       else audioUrl = `http://localhost:5000/static/${audio}`;
     }
 
@@ -196,20 +211,27 @@ export default function CharacterScene() {
     });
   }, []);
 
-  const enqueue = useCallback((speaker: string, obj: { text: string; audio?: string; emotion?: number }) => {
-    setNpcStates((prev) => ({
-      ...prev,
-      [speaker]: {
-        lastLine: obj.text,
-        emotion: obj.emotion !== undefined ? obj.emotion : prev[speaker]?.emotion,
-      },
-    }));
-    setLastSpeaker(speaker);
-    if (obj.audio) {
-      queue.current.push({ speaker, audio: obj.audio });
-      if (!audioRef.current) playNext();
-    }
-  }, [playNext]);
+  const enqueue = useCallback(
+    (
+      speaker: string,
+      obj: { text: string; audio?: string; emotion?: number }
+    ) => {
+      setNpcStates((prev) => ({
+        ...prev,
+        [speaker]: {
+          lastLine: obj.text,
+          emotion:
+            obj.emotion !== undefined ? obj.emotion : prev[speaker]?.emotion,
+        },
+      }));
+      setLastSpeaker(speaker);
+      if (obj.audio) {
+        queue.current.push({ speaker, audio: obj.audio });
+        if (!audioRef.current) playNext();
+      }
+    },
+    [playNext]
+  );
 
   const clearQueue = useCallback(() => {
     audioRef.current?.pause();
@@ -222,19 +244,26 @@ export default function CharacterScene() {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('http://localhost:5000/idle');
+        const res = await fetch("http://localhost:5000/idle");
         const data = await res.json();
-        console.log('IDLE RESPONSES:', data.responses); // Debug log
-        (data.responses || []).forEach((resp: { speaker: string; text: string; audio?: string; emotion?: number }) => {
-          const { speaker, text, audio, emotion } = resp;
-          console.log('Enqueue:', { speaker, text, audio, emotion }); // Debug log
-          
-          if (speaker === "Coach") {
-            setCoachFeedback(text);
-          } else {
-            enqueue(speaker, { text, audio, emotion });
+        console.log("IDLE RESPONSES:", data.responses); // Debug log
+        (data.responses || []).forEach(
+          (resp: {
+            speaker: string;
+            text: string;
+            audio?: string;
+            emotion?: number;
+          }) => {
+            const { speaker, text, audio, emotion } = resp;
+            console.log("Enqueue:", { speaker, text, audio, emotion }); // Debug log
+
+            if (speaker === "Coach") {
+              setCoachFeedback(text);
+            } else {
+              enqueue(speaker, { text, audio, emotion });
+            }
           }
-        });
+        );
       } catch (e) {
         // Optionally handle error
       }
@@ -264,14 +293,17 @@ export default function CharacterScene() {
       .then((data) => {
         const responseText = data.response;
         const [npcSpeaker, npcMessage] = responseText.split(": ");
-        console.log("Coach Response:", { speaker: npcSpeaker, message: npcMessage });
-        
+        console.log("Coach Response:", {
+          speaker: npcSpeaker,
+          message: npcMessage,
+        });
+
         setChatMessages((prev) => [
           ...prev,
           { name: npcSpeaker, text: npcMessage },
         ]);
         setSubtitleText(npcMessage);
-        
+
         // Update both coach feedback and AI suggestion
         if (data.feedback) {
           setCoachFeedback(data.feedback);
@@ -280,7 +312,7 @@ export default function CharacterScene() {
             data.feedback.length * 25 + 500
           );
         }
-        
+
         const npcData = characterData.find((c) => c.name === npcSpeaker);
         if (npcData) {
           const audio = new Audio(npcData.audio);
@@ -298,8 +330,14 @@ export default function CharacterScene() {
       });
   }
 
+  //state for loading
+  const [loading, setLoading] = useState(false);
+
   const handleTopicSubmit = () => {
     if (!topic.trim()) return;
+
+    setLoading(true); // Start loader
+
     fetch("http://localhost:5000/topic", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -310,7 +348,7 @@ export default function CharacterScene() {
         if (d.status === "ok" && d.npcs) {
           setIsTopicSelected(true);
           setNpcNames(d.npcs);
-          // Assign a unique model and description to each NPC
+
           const models = [
             "/models/char1.glb",
             "/models/char2.glb",
@@ -325,6 +363,7 @@ export default function CharacterScene() {
             "Analyst",
             "Strategist",
           ];
+
           setCharacterData(
             d.npcs.map((name: string, i: number) => ({
               url: models[i % models.length],
@@ -332,20 +371,30 @@ export default function CharacterScene() {
               description: descriptions[i % descriptions.length],
             }))
           );
-          setChatMessages([{ name: "System", text: `Topic selected: ${topic}` }]);
+
+          setChatMessages([
+            { name: "System", text: `Topic selected: ${topic}` },
+          ]);
+        } else {
+          alert("Topic fetch failed.");
         }
       })
       .catch((error) => {
         console.error("Error setting topic:", error);
         alert("Failed to set topic. Please try again.");
+      })
+      .finally(() => {
+        setLoading(false); // Hide loader regardless of success or failure
       });
   };
 
   if (!isTopicSelected) {
     return (
       <div className="w-screen h-screen flex items-center justify-center bg-gray-900">
-        <div className="w-96 p-6 bg-gray-800 rounded-lg shadow-xl">
-          <h1 className="text-2xl font-semibold text-white mb-4">Choose a discussion topic</h1>
+        <div className="w-96 p-6 bg-gray-800 rounded-lg shadow-xl text-center">
+          <h1 className="text-2xl font-semibold text-white mb-4">
+            Choose a discussion topic
+          </h1>
           <input
             className="w-full p-3 rounded bg-gray-700 text-white focus:outline-none mb-4"
             placeholder="e.g. Overcoming stage fright"
@@ -355,9 +404,21 @@ export default function CharacterScene() {
           />
           <button
             onClick={handleTopicSubmit}
-            className="w-full px-6 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white"
+            disabled={loading}
+            className={`w-full px-6 py-2 rounded text-white ${
+              loading
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-500"
+            }`}
           >
-            Start
+            {loading ? (
+              <div className="flex justify-center items-center gap-2">
+                <div className="w-5 h-5 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                Loading...
+              </div>
+            ) : (
+              "Start"
+            )}
           </button>
         </div>
       </div>
@@ -394,7 +455,14 @@ export default function CharacterScene() {
             {characterData.map((c, i) => {
               const npcState = npcStates[c.name] || {};
               const isSpeaking = c.name === playing;
-              console.log('NPC Render:', c.name, 'isSpeaking:', isSpeaking, 'playing:', playing); // Debug log
+              console.log(
+                "NPC Render:",
+                c.name,
+                "isSpeaking:",
+                isSpeaking,
+                "playing:",
+                playing
+              ); // Debug log
               return (
                 <group key={c.name}>
                   <NPC
@@ -445,10 +513,7 @@ export default function CharacterScene() {
 
         {/* chat box --------------------------------------------------- */}
         <div className="pointer-events-auto">
-          <ChatBox
-            messages={chatMessages}
-            onSend={(msg) => handleSendMessage(msg)}
-          />
+          <ChatBox />
         </div>
 
         {/* subtitle --------------------------------------------------- */}
@@ -456,14 +521,22 @@ export default function CharacterScene() {
 
         {/* Coach feedback box */}
         {coachFeedback && (
-          <div className="absolute right-0 top-20 m-4 w-72 bg-gray-800 rounded-lg p-4 text-sm shadow-lg pointer-events-auto">
-            <h2 className="font-semibold text-green-400 mb-2">Coach feedback</h2>
+          <div className="absolute right-0 bottom-24 m-4 w-72 bg-gray-800 rounded-lg p-4 text-sm shadow-lg pointer-events-auto">
+            <h2 className="font-semibold text-green-400 mb-2">
+              Coach feedback
+            </h2>
             <ReactMarkdown
               components={{
                 p: ({ node, ...props }) => <p className="mb-1" {...props} />,
-                strong: ({ node, ...props }) => <strong className="font-bold" {...props} />,
-                em: ({ node, ...props }) => <em className="italic" {...props} />,
-                ul: ({ node, ...props }) => <ul className="list-disc ml-4" {...props} />,
+                strong: ({ node, ...props }) => (
+                  <strong className="font-bold" {...props} />
+                ),
+                em: ({ node, ...props }) => (
+                  <em className="italic" {...props} />
+                ),
+                ul: ({ node, ...props }) => (
+                  <ul className="list-disc ml-4" {...props} />
+                ),
                 li: ({ node, ...props }) => <li className="mb-1" {...props} />,
               }}
             >
