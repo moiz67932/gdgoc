@@ -24,6 +24,7 @@ import ReactMarkdown from "react-markdown";
 /* ------------------------------------------------------------------ */
 
 const charNameSet = new Set();
+
 type CharacterInfo = { name: string; description: string };
 
 /* ------------------------------------------------------------------ */
@@ -157,6 +158,7 @@ function PostFX() {
 /* ------------------------------------------------------------------ */
 
 export default function CharacterScene() {
+  const npcDetailMap = useRef<Record<string, { traits: string; attitude: string; tone: string }>>({});
   const [selected, setSelected] = useState<CharacterInfo | null>(null);
   const [hovered, setHovered] = useState<CharacterInfo | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
@@ -186,7 +188,7 @@ export default function CharacterScene() {
       audioRef.current.pause();
       audioRef.current = null;
     }
-    //queue.current = [];
+    queue.current = [];
     isSpeaking.current = false;
     lastMessageRef.current = null;
 
@@ -496,6 +498,21 @@ export default function CharacterScene() {
             }))
           );
 
+          // ─── NEW: give the ray-caster the list of valid names
+          charNameSet.clear();
+          Object.keys(npcDetailMap.current).forEach((k) => delete npcDetailMap.current[k]);
+          d.npcs.forEach((npc: any) => {
+            const nm = typeof npc === "object" ? npc.name : npc;
+            charNameSet.add(nm);
+            if (typeof npc === "object") {
+              npcDetailMap.current[nm] = {
+                traits: npc.traits,
+                attitude: npc.attitude,
+                tone: npc.tone,
+              };
+            }
+          });
+
           setChatMessages([
             { name: "System", text: `Topic selected: ${topic}` },
           ]);
@@ -516,7 +533,7 @@ export default function CharacterScene() {
   useEffect(() => {
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === "Shift") {
-        //isSpeaking.current = false;
+        isSpeaking.current = false;
         setSpeaking(null);
         setPlaying(null);
         console.log('[KEYUP] Shift released, isSpeaking set to false');
@@ -639,15 +656,32 @@ export default function CharacterScene() {
         {/* info card --------------------------------------------------- */}
         {(() => {
           const info = selected ?? hovered; // selected takes precedence
-          return info ? (
+            if (!info) return null;
+
+          const extra = npcDetailMap.current[info.name];
+          return (
             <div
-              className="absolute top-4 left-4 w-64 p-4 rounded-md bg-white/30 backdrop-blur
-                            border border-white/50 text-white shadow-lg pointer-events-auto"
+              className="absolute top-4 left-4 w-80 p-4 rounded-md bg-black/70 text-white
+                        backdrop-blur border border-white/40 shadow-lg pointer-events-auto"
             >
-              <h2 className="font-bold text-lg">{info.name}</h2>
-              <p className="text-sm">{info.description}</p>
+              <h2 className="text-xl font-bold mb-2">{info.name}</h2>
+              {extra ? (
+                <>
+                  <p className="text-sm mb-1">
+                    <span className="font-semibold">Traits:</span> {extra.traits}
+                  </p>
+                  <p className="text-sm mb-1">
+                    <span className="font-semibold">Attitude:</span> {extra.attitude}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-semibold">Tone:</span> {extra.tone}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm">{info.description}</p>
+              )}
             </div>
-          ) : null;
+          );
         })()}
 
         {/* chat box --------------------------------------------------- */}

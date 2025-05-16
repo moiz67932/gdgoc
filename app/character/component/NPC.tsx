@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useGLTF, Html } from "@react-three/drei";
 import { Group } from "three";
 import * as THREE from "three";
@@ -8,71 +8,69 @@ interface NPCProps {
   url: string;
   name: string;
   description: string;
+  /** Raw score 1 – 10 (1 = calm, 10 = upset) */
   emotionScore?: number;
-  lookAtCenter?: boolean;
   isSpeaking?: boolean;
   lastLine?: string;
 }
+
+/* ───────────── helpers ───────────── */
+
+const clamp     = (v: number) => Math.min(Math.max(v, 1), 10);
+const normalise = (v: number) => (11 - clamp(v)) / 10;   // 1 → 1.0, 10 → 0.0
+
+const emojiFor = (v: number): string => {
+  if (v <= 1) return "😄";
+  if (v <= 2) return "😊";
+  if (v <= 3) return "🙂";
+  if (v <= 4) return "😐";
+  if (v <= 5) return "😕";
+  if (v <= 6) return "😟";
+  if (v <= 7) return "🙁";
+  if (v <= 8) return "😢";
+  if (v <= 9) return "😠";
+  return "😭";
+};
+
+/* ───────────── component ─────────── */
 
 export default function NPC({
   index,
   url,
   name,
   description,
-  emotionScore: initialScore = 0.5,
-  lookAtCenter = true,
+  emotionScore = 5,
   isSpeaking = false,
   lastLine,
 }: NPCProps) {
   const { scene } = useGLTF(url);
-  const groupRef = useRef<Group>(null);
-  const [emotionScore] = useState(initialScore);
+  const groupRef  = useRef<Group>(null);
 
-  // Enable shadows on NPC model
+  /* enable shadows on every mesh in the GLB */
   useEffect(() => {
     scene.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
-        child.castShadow = true;
+        child.castShadow    = true;
         child.receiveShadow = true;
       }
     });
   }, [scene]);
 
-  const radius = 2.15;
+  /* ring-layout positioning (unchanged) */
+  const radius       = 2.15;
   const spreadFactor = 0.9;
   const centerOffset = 2;
-  const angle = ((index - centerOffset) * Math.PI) / (6.1 * spreadFactor);
-  const x = radius * Math.sin(angle);
-  const z = 3.5 - radius * Math.cos(angle);
+  const angle        = ((index - centerOffset) * Math.PI) / (6.1 * spreadFactor);
+  const x            = radius * Math.sin(angle);
+  const z            = 3.5 - radius * Math.cos(angle);
 
-  const color = `hsl(${emotionScore * 120}, 100%, 50%)`;
+  /* static yaw so everyone faces the user/camera */
+  const rotations = [Math.PI / 2, Math.PI / 4, 0, -Math.PI / 4, -Math.PI / 2];
+  const rotationY = rotations[index] ?? 0;
 
-  let moodEmoji = "😐";
-  if (emotionScore < 0.2) moodEmoji = "😡";
-  else if (emotionScore < 0.5) moodEmoji = "😟";
-  else if (emotionScore < 0.75) moodEmoji = "🙂";
-  else moodEmoji = "😄";
-
-  let rotationY = 0;
-  if (index === 0) rotationY = Math.PI / 2;
-  else if (index === 1) rotationY = Math.PI / 4;
-  else if (index === 2) rotationY = 0;
-  else if (index === 3) rotationY = -Math.PI / 4;
-  else if (index === 4) rotationY = -Math.PI / 2;
-
-  // Map emotionScore (1-10) to emoji (new scale)
-  function emojiFor(v: number) {
-    if (v <= 1) return "😄"; // delighted
-    if (v <= 2) return "😊"; // happy
-    if (v <= 3) return "🙂"; // content
-    if (v <= 4) return "😐"; // neutral
-    if (v <= 5) return "😕"; // concerned
-    if (v <= 6) return "😟"; // frustrated
-    if (v <= 7) return "🙁"; // upset
-    if (v <= 8) return "😢"; // sad
-    if (v <= 9) return "😠"; // angry
-    return "😭"; // devastated
-  }
+  /* bar colour – green when calm, red when upset */
+  const barHue   = normalise(emotionScore) * 120; // 0 red → 120 green
+  const barColor = `hsl(${barHue},100%,50%)`;
 
   return (
     <group
@@ -82,90 +80,76 @@ export default function NPC({
       position={[x, 0, z]}
       rotation={[0, rotationY, 0]}
     >
-      <group position={[0, 0, 0]}>
-        <primitive object={scene} scale={0.85} />
-      </group>
+      {/* avatar model */}
+      <primitive object={scene} scale={0.85} />
 
-      <group position={[0, 1.8, 0]}>
-        <Html center>
+      {/* pulsing dot while speaking */}
+      <Html center position={[0, 1.8, 0]}>
+        <div
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+            border: "2px solid #333",
+            background: "#fff",
+            boxShadow: isSpeaking ? "0 0 60px 20px rgba(0,128,255,0.8)" : "none",
+            animation: isSpeaking
+              ? "dotScale 0.8s ease-in-out infinite, glowPulse 0.8s ease-in-out infinite"
+              : "none",
+          }}
+        />
+        <style>{`
+          @keyframes dotScale { 0%,100%{transform:scale(1);} 50%{transform:scale(1.6);} }
+          @keyframes glowPulse{
+            0%,100%{box-shadow:0 0 20px 8px rgba(0,128,255,0.7);}
+            50%    {box-shadow:0 0 80px 32px rgba(0,128,255,1);}
+          }
+        `}</style>
+      </Html>
+
+      {/* emoji + emotion bar */}
+      <Html center position={[0, 0.25, 0]}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 22 }}>{emojiFor(emotionScore)}</span>
           <div
-            className="speaker-dot"
             style={{
-              width: 20,
-              height: 20,
-              borderRadius: "50%",
-              border: "2px solid #333",
-              background: "#fff",
-              boxShadow: isSpeaking
-                ? "0 0 60px 20px rgba(0,128,255,0.8)"
-                : "none",
-              animation: isSpeaking
-                ? "dotScale 0.8s ease-in-out infinite, glowPulse 0.8s ease-in-out infinite"
-                : "none",
+              width: 60,
+              height: 8,
+              background: "#ccc",
+              borderRadius: 4,
+              overflow: "hidden",
+              border: "1px solid #333",
             }}
-          />
-          <style>{`
-            @keyframes dotScale {
-              0%, 100% { transform: scale(1);   }
-              50%      { transform: scale(1.6); }
-            }
-
-            @keyframes glowPulse {
-              0%, 100% { box-shadow: 0 0 20px  8px rgba(0,128,255,0.7); }
-              50%      { box-shadow: 0 0 80px 32px rgba(0,128,255,1);  }
-            }
-          `}</style>
-        </Html>
-
-        {/* Emotion bar and emoji */}
-        <Html position={[0, 0.25, 0]} center>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: "22px", marginRight: 4 }}>
-              {emojiFor(emotionScore)}
-            </span>
+          >
             <div
               style={{
-                width: "60px",
-                height: "8px",
-                background: "#ccc",
-                borderRadius: "4px",
-                overflow: "hidden",
-                border: "1px solid #333",
-                marginLeft: 2,
+                width: `${normalise(emotionScore) * 100}%`,
+                height: "100%",
+                backgroundColor: barColor,
+                transition: "width 0.25s",
               }}
-            >
-              <div
-                style={{
-                  width: `${(emotionScore / 10) * 100}%`,
-                  height: "100%",
-                  backgroundColor: `hsl(${
-                    (1 - emotionScore / 10) * 120
-                  }, 100%, 50%)`,
-                  transition: "width 0.2s",
-                }}
-              />
-            </div>
+            />
           </div>
-        </Html>
-      </group>
+        </div>
+      </Html>
 
-      {/* Talking bubble animation for lastLine, only when speaking */}
+      {/* speech bubble (only while speaking) */}
       {isSpeaking && lastLine && (
-        <Html position={[0, 0.7, 0]} center distanceFactor={10}>
+        <Html center position={[0, 0.7, 0]} distanceFactor={10}>
           <div
-            className="bg-white/90 text-black px-1.5 py-0.5 rounded-md shadow-md text-[6px] font-[var(--font-poppins)]"
+            className="bg-white/90 text-black px-1.5 py-0.5 rounded-md shadow-md text-[6px]"
             style={{
               border: "1px solid rgba(0,0,0,0.1)",
               boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              width: "120px",
-              minHeight: "12px",
+              width: 120,
+              minHeight: 12,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               textAlign: "center",
               fontWeight: 500,
               letterSpacing: "0.01em",
-              lineHeight: "1.2",
+              lineHeight: 1.2,
               backdropFilter: "blur(4px)",
             }}
           >
@@ -177,7 +161,7 @@ export default function NPC({
   );
 }
 
-// Preload the models
+/* preload GLBs */
 useGLTF.preload("/models/char1.glb");
 useGLTF.preload("/models/char2.glb");
 useGLTF.preload("/models/char3.glb");
