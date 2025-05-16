@@ -2,32 +2,26 @@
 import React from "react";
 
 interface CharacterInfoPanelProps {
-  visible: boolean;
-  description: string;
+  name?: string;
+  description?: string;
 }
 
-export default function CharacterInfoPanel({
-  visible,
+const CharacterInfoPanel: React.FC<CharacterInfoPanelProps> = ({
+  name,
   description,
-}: CharacterInfoPanelProps) {
-  if (!visible) return null;
+}) => {
+  if (!name && !description) return null;
 
   return (
     <div
-      style={{
-        position: "absolute",
-        bottom: "20px",
-        left: "20px",
-        padding: "12px",
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
-        color: "white",
-        borderRadius: "8px",
-        fontSize: "14px",
-        maxWidth: "250px",
-        zIndex: 20,
-      }}
+      className="absolute top-1/4 left-4 w-64 p-4 rounded-md bg-black/60 backdrop-blur-sm
+                    border border-white/20 text-white shadow-lg pointer-events-auto
+                    transition-all duration-200 ease-in-out"
     >
-      {description}
+      <h2 className="font-bold text-lg mb-2">{name}</h2>
+      <p className="text-sm text-gray-200">{description}</p>
     </div>
   );
-}
+};
+
+export default CharacterInfoPanel;
