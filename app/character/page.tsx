@@ -186,7 +186,7 @@ export default function CharacterScene() {
       audioRef.current.pause();
       audioRef.current = null;
     }
-    queue.current = [];
+    //queue.current = [];
     isSpeaking.current = false;
     lastMessageRef.current = null;
 
@@ -197,23 +197,25 @@ export default function CharacterScene() {
     setSpeaking(null);
     setLastSpeaker(null);
 
-    const clearIntervals = () => {
-      const highestIntervalId = window.setTimeout(() => {}, 0);
-      for (let i = 0; i < highestIntervalId; i++) {
-        window.clearTimeout(i);
-        window.clearInterval(i);
-      }
-    };
-    clearIntervals();
+    // const clearIntervals = () => {
+    //   const highestIntervalId = window.setTimeout(() => {}, 0);
+    //   for (let i = 0; i < highestIntervalId; i++) {
+    //     window.clearTimeout(i);
+    //     window.clearInterval(i);
+    //   }
+    // };
+    // clearIntervals();
 
     setNpcStates({});
   }, []);
 
   const playNext = useCallback(() => {
+    console.log('[playNext] called. Queue:', queue.current.length, 'isSpeaking:', isSpeaking.current);
     if (queue.current.length === 0 || isSpeaking.current) {
-      audioRef.current = null;
-      setPlaying(null);
-      return;
+        audioRef.current = null;
+        setPlaying(null);
+        console.log('[playNext] Exiting: empty queue or already speaking');
+        return;
     }
 
     const { speaker, audio, text } = queue.current[0];
@@ -221,49 +223,66 @@ export default function CharacterScene() {
 
     // Quick check for immediate duplicates
     if (
-      lastMessageRef.current?.speaker === speaker &&
-      lastMessageRef.current?.text === text
+        lastMessageRef.current?.speaker === speaker &&
+        lastMessageRef.current?.text === text
     ) {
-      queue.current.shift();
-      playNext();
-      return;
+        queue.current.shift();
+        playNext();
+        return;
     }
 
     setPlaying(speaker);
     setLastSpeaker(speaker);
     isSpeaking.current = true;
     lastMessageRef.current = { speaker, text };
+    console.log('[playNext] Now playing:', speaker, text);
 
     let audioUrl = audio;
     if (audio && !audio.startsWith("http")) {
-      if (audio.startsWith("/static"))
-        audioUrl = `http://localhost:5000${audio}`;
-      else if (audio.startsWith("static"))
-        audioUrl = `http://localhost:5000/${audio}`;
-      else audioUrl = `http://localhost:5000/static/${audio}`;
+        if (audio.startsWith("/static"))
+            audioUrl = `http://localhost:5000${audio}`;
+        else if (audio.startsWith("static"))
+            audioUrl = `http://localhost:5000/${audio}`;
+        else audioUrl = `http://localhost:5000/static/${audio}`;
     }
 
     const a = new Audio(audioUrl);
     audioRef.current = a;
 
+    // Remove timeout fallback and improve audio event handling
     a.onended = () => {
-      isSpeaking.current = false;
-      queue.current.shift();
-      playNext();
+        console.log('[playNext] Audio ended naturally for:', speaker);
+        isSpeaking.current = false;
+        queue.current.shift();
+        playNext();
     };
 
-    a.onerror = () => {
-      isSpeaking.current = false;
-      queue.current.shift();
-      playNext();
+    a.onerror = (error) => {
+        console.error('[playNext] Audio error:', error);
+        isSpeaking.current = false;
+        queue.current.shift();
+        playNext();
     };
 
-    a.play().catch(() => {
-      isSpeaking.current = false;
-      queue.current.shift();
-      playNext();
+    // Add loadedmetadata event to ensure audio is ready
+    a.onloadedmetadata = () => {
+        console.log('[playNext] Audio loaded, duration:', a.duration);
+    };
+
+    // Add timeupdate event to track progress
+    a.ontimeupdate = () => {
+        if (a.currentTime > 0 && a.currentTime < a.duration) {
+            console.log('[playNext] Audio progress:', Math.round((a.currentTime / a.duration) * 100) + '%');
+        }
+    };
+
+    a.play().catch((error) => {
+        console.error('[playNext] Audio play() failed:', error);
+        isSpeaking.current = false;
+        queue.current.shift();
+        playNext();
     });
-  }, []);
+}, []);
 
   const enqueue = useCallback(
     (
@@ -299,9 +318,14 @@ export default function CharacterScene() {
   // Poll /idle every 3s for NPC responses and audio, and enqueue
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (isSpeaking.current) return;
+      // Skip if currently speaking or if there's audio in the queue
+      if (isSpeaking.current || queue.current.length > 0) {
+        console.log('[IDLE POLL] Skipping fetch - isSpeaking:', isSpeaking.current, 'queue length:', queue.current.length);
+        return;
+      }
 
       try {
+        console.log('[IDLE POLL] Fetching idle responses');
         const res = await fetch("http://localhost:5000/idle");
         const data = await res.json();
         (data.responses || []).forEach(
@@ -323,9 +347,9 @@ export default function CharacterScene() {
           }
         );
       } catch (e) {
-        // Optionally handle error
+        console.error('[IDLE POLL] Error:', e);
       }
-    }, 3000);
+    }, 2000); // Changed from 1000 to 3000 for 3-second interval
     return () => clearInterval(interval);
   }, [enqueue]);
 
@@ -353,6 +377,14 @@ export default function CharacterScene() {
         // Optionally handle error
       }
     }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Debug: log isSpeaking.current every 1 second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('[DEBUG] isSpeaking.current:', isSpeaking.current);
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -480,6 +512,27 @@ export default function CharacterScene() {
       });
   };
 
+  // Add Shift keyup handler to set isSpeaking.current = false
+  useEffect(() => {
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        //isSpeaking.current = false;
+        setSpeaking(null);
+        setPlaying(null);
+        console.log('[KEYUP] Shift released, isSpeaking set to false');
+      }
+    };
+    window.addEventListener("keyup", handleKeyUp);
+    return () => window.removeEventListener("keyup", handleKeyUp);
+  }, []);
+
+  useEffect(() => {
+    console.log('CharacterScene mounted');
+    return () => {
+      console.log('CharacterScene unmounted');
+    };
+  }, []);
+
   if (!isTopicSelected) {
     return (
       <div className="w-screen h-screen flex items-center justify-center bg-gray-900">
@@ -547,14 +600,6 @@ export default function CharacterScene() {
             {characterData.map((c, i) => {
               const npcState = npcStates[c.name] || {};
               const isSpeaking = c.name === playing;
-              console.log(
-                "NPC Render:",
-                c.name,
-                "isSpeaking:",
-                isSpeaking,
-                "playing:",
-                playing
-              ); // Debug log
               return (
                 <group key={`npc-${c.name}-${i}`}>
                   <NPC

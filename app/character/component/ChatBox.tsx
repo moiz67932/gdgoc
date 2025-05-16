@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function MicButton({
   clearQueue,
@@ -7,14 +7,26 @@ export default function MicButton({
   clearQueue?: () => void;
   clearMessages?: () => void;
 }) {
-  const [micOn, setMicOn] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [iconState, setIconState] = useState<'muted' | 'mic'>('muted');
+
+  const startMic = () => {
+    setIconState('mic');
+    console.log('[Mic] startMic: iconState=mic');
+  };
+
+  const stopMic = () => {
+    setIconState('muted');
+    console.log('[Mic] stopMic: iconState=muted');
+  };
 
   const toggleMic = async (enable: boolean) => {
-    setMicOn(enable);
+    console.log('[Mic] toggleMic called. enable:', enable);
     if (enable) {
+      startMic();
       if (clearQueue) clearQueue();
       if (clearMessages) clearMessages();
+    } else {
+      stopMic();
     }
     await fetch("http://localhost:5000/voice", {
       method: "POST",
@@ -25,16 +37,16 @@ export default function MicButton({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Shift" && !micOn && !loading) {
+      if (e.key === "Shift" && iconState !== 'mic') {
+        console.log('[Mic] handleKeyDown: Shift down');
         toggleMic(true);
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "Shift" && micOn) {
+      if (e.key === "Shift" && iconState === 'mic') {
+        console.log('[Mic] handleKeyUp: Shift up');
         toggleMic(false);
-        setLoading(true);
-        setTimeout(() => setLoading(false), 2000);
       }
     };
 
@@ -44,19 +56,28 @@ export default function MicButton({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [micOn, loading]);
+  }, [iconState]);
+
+  useEffect(() => {
+    console.log('[Mic] Render: iconState:', iconState);
+  }, [iconState]);
+
+  useEffect(() => {
+    console.log('[Mic] MicButton mounted');
+    return () => {
+      console.log('[Mic] MicButton unmounted');
+    };
+  }, []);
 
   return (
     <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 z-50 flex flex-row items-center gap-2">
       <button
         className={`w-20 h-20 rounded-full shadow-xl text-white text-5xl flex items-center justify-center ${
-          micOn ? "bg-red-500" : "bg-gray-700"
+          iconState === 'mic' ? "bg-red-500" : "bg-gray-700"
         } transition duration-200`}
         title="Press and hold Shift to talk"
       >
-        {loading ? (
-          <div className="w-10 h-10 border-[5px] border-white border-t-transparent rounded-full animate-spin" />
-        ) : micOn ? (
+        {iconState === 'mic' ? (
           "🎙️"
         ) : (
           "🔇"
