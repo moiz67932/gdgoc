@@ -60,18 +60,18 @@ export default function NPC({
   else if (index === 3) rotationY = -Math.PI / 4;
   else if (index === 4) rotationY = -Math.PI / 2;
 
-  // Map emotionScore to emoji (HTML logic)
+  // Map emotionScore (1-10) to emoji (new scale)
   function emojiFor(v: number) {
-    if (v <= 0.1) return "😁";
-    if (v <= 0.2) return "😄";
-    if (v <= 0.3) return "🙂";
-    if (v <= 0.4) return "😐";
-    if (v <= 0.5) return "😕";
-    if (v <= 0.6) return "😟";
-    if (v <= 0.7) return "🙁";
-    if (v <= 0.8) return "😢";
-    if (v <= 0.9) return "😠";
-    return "😭";
+    if (v <= 1) return "😄"; // delighted
+    if (v <= 2) return "😊"; // happy
+    if (v <= 3) return "🙂"; // content
+    if (v <= 4) return "😐"; // neutral
+    if (v <= 5) return "😕"; // concerned
+    if (v <= 6) return "😟"; // frustrated
+    if (v <= 7) return "🙁"; // upset
+    if (v <= 8) return "😢"; // sad
+    if (v <= 9) return "😠"; // angry
+    return "😭"; // devastated
   }
 
   return (
@@ -136,10 +136,10 @@ export default function NPC({
             >
               <div
                 style={{
-                  width: `${emotionScore * 100}%`,
+                  width: `${(emotionScore / 10) * 100}%`,
                   height: "100%",
                   backgroundColor: `hsl(${
-                    (1 - emotionScore) * 120
+                    (1 - emotionScore / 10) * 120
                   }, 100%, 50%)`,
                   transition: "width 0.2s",
                 }}

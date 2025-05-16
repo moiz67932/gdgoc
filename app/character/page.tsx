@@ -176,20 +176,64 @@ export default function CharacterScene() {
   const [topic, setTopic] = useState<string>("");
 
   // HTML-style audio queue system
-  const queue = useRef<{ speaker: string; audio: string }[]>([]);
+  const queue = useRef<{ speaker: string; audio: string; text: string }[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isSpeaking = useRef(false);
+  const lastMessageRef = useRef<{ speaker: string; text: string } | null>(null);
+
+  const clearAll = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    queue.current = [];
+    isSpeaking.current = false;
+    lastMessageRef.current = null;
+
+    setPlaying(null);
+    setChatMessages([]);
+    setSubtitleText("");
+    setCoachFeedback("");
+    setSpeaking(null);
+    setLastSpeaker(null);
+
+    const clearIntervals = () => {
+      const highestIntervalId = window.setTimeout(() => {}, 0);
+      for (let i = 0; i < highestIntervalId; i++) {
+        window.clearTimeout(i);
+        window.clearInterval(i);
+      }
+    };
+    clearIntervals();
+
+    setNpcStates({});
+  }, []);
 
   const playNext = useCallback(() => {
-    if (queue.current.length === 0) {
+    if (queue.current.length === 0 || isSpeaking.current) {
       audioRef.current = null;
       setPlaying(null);
       return;
     }
-    const { speaker, audio } = queue.current[0];
+
+    const { speaker, audio, text } = queue.current[0];
+    if (isSpeaking.current) return;
+
+    // Quick check for immediate duplicates
+    if (
+      lastMessageRef.current?.speaker === speaker &&
+      lastMessageRef.current?.text === text
+    ) {
+      queue.current.shift();
+      playNext();
+      return;
+    }
+
     setPlaying(speaker);
     setLastSpeaker(speaker);
+    isSpeaking.current = true;
+    lastMessageRef.current = { speaker, text };
 
-    // Always use backend static directory for audio
     let audioUrl = audio;
     if (audio && !audio.startsWith("http")) {
       if (audio.startsWith("/static"))
@@ -201,11 +245,21 @@ export default function CharacterScene() {
 
     const a = new Audio(audioUrl);
     audioRef.current = a;
+
     a.onended = () => {
+      isSpeaking.current = false;
       queue.current.shift();
       playNext();
     };
+
+    a.onerror = () => {
+      isSpeaking.current = false;
+      queue.current.shift();
+      playNext();
+    };
+
     a.play().catch(() => {
+      isSpeaking.current = false;
       queue.current.shift();
       playNext();
     });
@@ -216,6 +270,15 @@ export default function CharacterScene() {
       speaker: string,
       obj: { text: string; audio?: string; emotion?: number }
     ) => {
+      // Simple duplicate check
+      if (
+        queue.current.length > 0 &&
+        queue.current[queue.current.length - 1].speaker === speaker &&
+        queue.current[queue.current.length - 1].text === obj.text
+      ) {
+        return;
+      }
+
       setNpcStates((prev) => ({
         ...prev,
         [speaker]: {
@@ -226,27 +289,21 @@ export default function CharacterScene() {
       }));
       setLastSpeaker(speaker);
       if (obj.audio) {
-        queue.current.push({ speaker, audio: obj.audio });
-        if (!audioRef.current) playNext();
+        queue.current.push({ speaker, audio: obj.audio, text: obj.text });
+        if (!audioRef.current && !isSpeaking.current) playNext();
       }
     },
     [playNext]
   );
 
-  const clearQueue = useCallback(() => {
-    audioRef.current?.pause();
-    audioRef.current = null;
-    queue.current = [];
-    setPlaying(null);
-  }, []);
-
   // Poll /idle every 3s for NPC responses and audio, and enqueue
   useEffect(() => {
     const interval = setInterval(async () => {
+      if (isSpeaking.current) return;
+
       try {
         const res = await fetch("http://localhost:5000/idle");
         const data = await res.json();
-        console.log("IDLE RESPONSES:", data.responses); // Debug log
         (data.responses || []).forEach(
           (resp: {
             speaker: string;
@@ -255,12 +312,13 @@ export default function CharacterScene() {
             emotion?: number;
           }) => {
             const { speaker, text, audio, emotion } = resp;
-            console.log("Enqueue:", { speaker, text, audio, emotion }); // Debug log
 
             if (speaker === "Coach") {
               setCoachFeedback(text);
             } else {
               enqueue(speaker, { text, audio, emotion });
+              setSubtitleText(text);
+              setSpeaking(speaker);
             }
           }
         );
@@ -270,6 +328,33 @@ export default function CharacterScene() {
     }, 3000);
     return () => clearInterval(interval);
   }, [enqueue]);
+
+  // Poll /npc_emotions every 10 seconds to update NPC emotions
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("http://localhost:5000/npc_emotions");
+        const data = await res.json();
+        if (data && data.emotions) {
+          setNpcStates((prev) => {
+            const updated = { ...prev };
+            data.emotions.forEach(
+              ({ name, value }: { name: string; value: number }) => {
+                updated[name] = {
+                  ...updated[name],
+                  emotion: value,
+                };
+              }
+            );
+            return updated;
+          });
+        }
+      } catch (e) {
+        // Optionally handle error
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   /* ------------------------------------------------------------------ */
   /*                         MESSAGE HANDLING                           */
@@ -347,7 +432,11 @@ export default function CharacterScene() {
       .then((d) => {
         if (d.status === "ok" && d.npcs) {
           setIsTopicSelected(true);
-          setNpcNames(d.npcs);
+          setNpcNames(
+            d.npcs.map((npc: { name: any }) =>
+              typeof npc === "object" ? npc.name : npc
+            )
+          );
 
           const models = [
             "/models/char1.glb",
@@ -365,10 +454,13 @@ export default function CharacterScene() {
           ];
 
           setCharacterData(
-            d.npcs.map((name: string, i: number) => ({
+            d.npcs.map((npc: any, i: number) => ({
               url: models[i % models.length],
-              name,
-              description: descriptions[i % descriptions.length],
+              name: typeof npc === "object" ? npc.name : npc,
+              description:
+                typeof npc === "object"
+                  ? npc.traits
+                  : descriptions[i % descriptions.length],
             }))
           );
 
@@ -464,12 +556,14 @@ export default function CharacterScene() {
                 playing
               ); // Debug log
               return (
-                <group key={c.name}>
+                <group key={`npc-${c.name}-${i}`}>
                   <NPC
                     index={i}
                     url={c.url}
-                    name={c.name}
-                    description={c.description}
+                    name={typeof c === "object" ? c.name : c}
+                    description={
+                      typeof c === "object" ? c.traits : c.description
+                    }
                     emotionScore={npcState.emotion ?? i * 0.25}
                     isSpeaking={isSpeaking}
                     lastLine={npcState.lastLine}
@@ -511,13 +605,10 @@ export default function CharacterScene() {
           ) : null;
         })()}
 
-        {/* subtitle --------------------------------------------------- */}
-        <Subtitle text={subtitleText} />
-
         {/* chat box --------------------------------------------------- */}
         <div className="pointer-events-auto">
           <ChatBox
-            clearQueue={clearQueue}
+            clearQueue={clearAll}
             clearMessages={() => {
               setChatMessages([]);
               setSubtitleText("");
