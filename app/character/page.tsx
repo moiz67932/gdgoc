@@ -18,50 +18,13 @@ import Room from "./component/Room";
 import ChatBox from "./component/ChatBox";
 import Subtitle from "./component/Subtitle";
 import ReactMarkdown from "react-markdown";
-import CharacterInfoPanel from "./component/CharacterInfoPanel";
 
 /* ------------------------------------------------------------------ */
 /*                              DATA                                  */
 /* ------------------------------------------------------------------ */
 
-const charNameSet = new Set(["Sarah", "Michael", "David", "Emma", "James"]);
+const charNameSet = new Set();
 type CharacterInfo = { name: string; description: string };
-
-const characterInfo: { [key: string]: CharacterInfo } = {
-  Sarah: {
-    name: "Sarah",
-    description:
-      "A confident female team leader with excellent communication skills and strategic thinking.",
-  },
-  Michael: {
-    name: "Michael",
-    description:
-      "A male engineer with strong technical expertise and problem-solving abilities.",
-  },
-  David: {
-    name: "David",
-    description:
-      "A male designer with creative vision and attention to detail.",
-  },
-  Emma: {
-    name: "Emma",
-    description:
-      "A female analyst with strong analytical skills and data-driven approach.",
-  },
-  James: {
-    name: "James",
-    description:
-      "A male strategist with innovative thinking and leadership qualities.",
-  },
-};
-
-const characterModels = [
-  { model: "/models/char1.glb", name: "Sarah" },
-  { model: "/models/char2.glb", name: "Michael" },
-  { model: "/models/char3.glb", name: "David" },
-  { model: "/models/char4.glb", name: "Emma" },
-  { model: "/models/char5.glb", name: "James" },
-];
 
 /* ------------------------------------------------------------------ */
 /*                       RAY-CAST SELECTION                           */
@@ -90,12 +53,9 @@ function RaycastSelector({
       while (cur) {
         const nm = cur.userData?.name;
         if (nm && charNameSet.has(nm)) {
-          // Get character info from our hardcoded data
-          const characterData = characterInfo[nm];
-          if (characterData) {
-            setHovered(characterData);
-            return;
-          }
+          const meta = { name: nm, description: "" };
+          setHovered(meta);
+          return;
         }
         cur = cur.parent;
       }
@@ -114,12 +74,18 @@ function RaycastSelector({
         while (cur) {
           const nm = cur.userData?.name;
           if (nm && charNameSet.has(nm)) {
-            const characterData = characterInfo[nm];
-            if (characterData) {
-              setSelected(characterData);
-              setSpeakingCharacter(nm);
-              return;
-            }
+            const meta = { name: nm, description: "" };
+
+            const audio = new Audio();
+            audio.src = nm.startsWith("/static")
+              ? `http://localhost:5000${nm}`
+              : nm;
+            audio.play();
+            setSpeakingCharacter(nm);
+            audio.addEventListener("ended", () => setSpeakingCharacter(null));
+
+            setSelected(meta);
+            return;
           }
           cur = cur.parent;
         }
@@ -208,13 +174,6 @@ export default function CharacterScene() {
   const [characterData, setCharacterData] = useState<any[]>([]);
   const [coachFeedback, setCoachFeedback] = useState<string>("");
   const [topic, setTopic] = useState<string>("");
-  const [npcEmotions, setNpcEmotions] = useState<{ [key: string]: number }>({
-    Sarah: 5,
-    Michael: 5,
-    David: 5,
-    Emma: 5,
-    James: 5,
-  });
 
   // HTML-style audio queue system
   const queue = useRef<{ speaker: string; audio: string; text: string }[]>([]);
@@ -251,17 +210,12 @@ export default function CharacterScene() {
   }, []);
 
   const playNext = useCallback(() => {
-    console.log(
-      "[playNext] called. Queue:",
-      queue.current.length,
-      "isSpeaking:",
-      isSpeaking.current
-    );
+    console.log('[playNext] called. Queue:', queue.current.length, 'isSpeaking:', isSpeaking.current);
     if (queue.current.length === 0 || isSpeaking.current) {
-      audioRef.current = null;
-      setPlaying(null);
-      console.log("[playNext] Exiting: empty queue or already speaking");
-      return;
+        audioRef.current = null;
+        setPlaying(null);
+        console.log('[playNext] Exiting: empty queue or already speaking');
+        return;
     }
 
     const { speaker, audio, text } = queue.current[0];
@@ -269,27 +223,27 @@ export default function CharacterScene() {
 
     // Quick check for immediate duplicates
     if (
-      lastMessageRef.current?.speaker === speaker &&
-      lastMessageRef.current?.text === text
+        lastMessageRef.current?.speaker === speaker &&
+        lastMessageRef.current?.text === text
     ) {
-      queue.current.shift();
-      playNext();
-      return;
+        queue.current.shift();
+        playNext();
+        return;
     }
 
     setPlaying(speaker);
     setLastSpeaker(speaker);
     isSpeaking.current = true;
     lastMessageRef.current = { speaker, text };
-    console.log("[playNext] Now playing:", speaker, text);
+    console.log('[playNext] Now playing:', speaker, text);
 
     let audioUrl = audio;
     if (audio && !audio.startsWith("http")) {
-      if (audio.startsWith("/static"))
-        audioUrl = `http://localhost:5000${audio}`;
-      else if (audio.startsWith("static"))
-        audioUrl = `http://localhost:5000/${audio}`;
-      else audioUrl = `http://localhost:5000/static/${audio}`;
+        if (audio.startsWith("/static"))
+            audioUrl = `http://localhost:5000${audio}`;
+        else if (audio.startsWith("static"))
+            audioUrl = `http://localhost:5000/${audio}`;
+        else audioUrl = `http://localhost:5000/static/${audio}`;
     }
 
     const a = new Audio(audioUrl);
@@ -297,41 +251,38 @@ export default function CharacterScene() {
 
     // Remove timeout fallback and improve audio event handling
     a.onended = () => {
-      console.log("[playNext] Audio ended naturally for:", speaker);
-      isSpeaking.current = false;
-      queue.current.shift();
-      playNext();
+        console.log('[playNext] Audio ended naturally for:', speaker);
+        isSpeaking.current = false;
+        queue.current.shift();
+        playNext();
     };
 
     a.onerror = (error) => {
-      console.error("[playNext] Audio error:", error);
-      isSpeaking.current = false;
-      queue.current.shift();
-      playNext();
+        console.error('[playNext] Audio error:', error);
+        isSpeaking.current = false;
+        queue.current.shift();
+        playNext();
     };
 
     // Add loadedmetadata event to ensure audio is ready
     a.onloadedmetadata = () => {
-      console.log("[playNext] Audio loaded, duration:", a.duration);
+        console.log('[playNext] Audio loaded, duration:', a.duration);
     };
 
     // Add timeupdate event to track progress
     a.ontimeupdate = () => {
-      if (a.currentTime > 0 && a.currentTime < a.duration) {
-        console.log(
-          "[playNext] Audio progress:",
-          Math.round((a.currentTime / a.duration) * 100) + "%"
-        );
-      }
+        if (a.currentTime > 0 && a.currentTime < a.duration) {
+            console.log('[playNext] Audio progress:', Math.round((a.currentTime / a.duration) * 100) + '%');
+        }
     };
 
     a.play().catch((error) => {
-      console.error("[playNext] Audio play() failed:", error);
-      isSpeaking.current = false;
-      queue.current.shift();
-      playNext();
+        console.error('[playNext] Audio play() failed:', error);
+        isSpeaking.current = false;
+        queue.current.shift();
+        playNext();
     });
-  }, []);
+}, []);
 
   const enqueue = useCallback(
     (
@@ -369,17 +320,12 @@ export default function CharacterScene() {
     const interval = setInterval(async () => {
       // Skip if currently speaking or if there's audio in the queue
       if (isSpeaking.current || queue.current.length > 0) {
-        console.log(
-          "[IDLE POLL] Skipping fetch - isSpeaking:",
-          isSpeaking.current,
-          "queue length:",
-          queue.current.length
-        );
+        console.log('[IDLE POLL] Skipping fetch - isSpeaking:', isSpeaking.current, 'queue length:', queue.current.length);
         return;
       }
 
       try {
-        console.log("[IDLE POLL] Fetching idle responses");
+        console.log('[IDLE POLL] Fetching idle responses');
         const res = await fetch("http://localhost:5000/idle");
         const data = await res.json();
         (data.responses || []).forEach(
@@ -401,7 +347,7 @@ export default function CharacterScene() {
           }
         );
       } catch (e) {
-        console.error("[IDLE POLL] Error:", e);
+        console.error('[IDLE POLL] Error:', e);
       }
     }, 2000); // Changed from 1000 to 3000 for 3-second interval
     return () => clearInterval(interval);
@@ -437,7 +383,7 @@ export default function CharacterScene() {
   // Debug: log isSpeaking.current every 1 second
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log("[DEBUG] isSpeaking.current:", isSpeaking.current);
+      console.log('[DEBUG] isSpeaking.current:', isSpeaking.current);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -446,20 +392,7 @@ export default function CharacterScene() {
   /*                         MESSAGE HANDLING                           */
   /* ------------------------------------------------------------------ */
 
-  // Function to update emotion after response
-  const updateEmotionAfterResponse = useCallback((speaker: string) => {
-    setNpcEmotions((prev) => {
-      const currentEmotion = prev[speaker];
-      const change = Math.random() < 0.5 ? 1 : -1;
-      const newEmotion = Math.max(1, Math.min(9, currentEmotion + change));
-      return {
-        ...prev,
-        [speaker]: newEmotion,
-      };
-    });
-  }, []);
-
-  // Update the handleSendMessage function
+  // Unified send handler for both text and voice
   function handleSendMessage(message: string) {
     if (!message.trim()) return;
     setChatMessages((prev) => [...prev, { name: "User", text: message }]);
@@ -469,12 +402,18 @@ export default function CharacterScene() {
       body: JSON.stringify({ message }),
     })
       .then((res) => {
-        if (!res.ok) throw new Error(`API error: ${res.statusText}`);
+        if (!res.ok) {
+          throw new Error(`API error: ${res.statusText}`);
+        }
         return res.json();
       })
       .then((data) => {
         const responseText = data.response;
         const [npcSpeaker, npcMessage] = responseText.split(": ");
+        console.log("Coach Response:", {
+          speaker: npcSpeaker,
+          message: npcMessage,
+        });
 
         setChatMessages((prev) => [
           ...prev,
@@ -482,9 +421,7 @@ export default function CharacterScene() {
         ]);
         setSubtitleText(npcMessage);
 
-        // Update emotion after response
-        updateEmotionAfterResponse(npcSpeaker);
-
+        // Update both coach feedback and AI suggestion
         if (data.feedback) {
           setCoachFeedback(data.feedback);
           setTimeout(
@@ -527,13 +464,35 @@ export default function CharacterScene() {
       .then((d) => {
         if (d.status === "ok" && d.npcs) {
           setIsTopicSelected(true);
-          setNpcNames(characterModels.map((char) => char.name));
+          setNpcNames(
+            d.npcs.map((npc: { name: any }) =>
+              typeof npc === "object" ? npc.name : npc
+            )
+          );
+
+          const models = [
+            "/models/char1.glb",
+            "/models/char2.glb",
+            "/models/char3.glb",
+            "/models/char4.glb",
+            "/models/char5.glb",
+          ];
+          const descriptions = [
+            "Team Leader",
+            "Engineer",
+            "Designer",
+            "Analyst",
+            "Strategist",
+          ];
 
           setCharacterData(
-            characterModels.map((char) => ({
-              url: char.model,
-              name: char.name,
-              description: characterInfo[char.name].description,
+            d.npcs.map((npc: any, i: number) => ({
+              url: models[i % models.length],
+              name: typeof npc === "object" ? npc.name : npc,
+              description:
+                typeof npc === "object"
+                  ? npc.traits
+                  : descriptions[i % descriptions.length],
             }))
           );
 
@@ -560,7 +519,7 @@ export default function CharacterScene() {
         //isSpeaking.current = false;
         setSpeaking(null);
         setPlaying(null);
-        console.log("[KEYUP] Shift released, isSpeaking set to false");
+        console.log('[KEYUP] Shift released, isSpeaking set to false');
       }
     };
     window.addEventListener("keyup", handleKeyUp);
@@ -568,9 +527,9 @@ export default function CharacterScene() {
   }, []);
 
   useEffect(() => {
-    console.log("CharacterScene mounted");
+    console.log('CharacterScene mounted');
     return () => {
-      console.log("CharacterScene unmounted");
+      console.log('CharacterScene unmounted');
     };
   }, []);
 
@@ -650,7 +609,7 @@ export default function CharacterScene() {
                     description={
                       typeof c === "object" ? c.traits : c.description
                     }
-                    emotionScore={npcEmotions[c.name]}
+                    emotionScore={npcState.emotion ?? i * 0.25}
                     isSpeaking={isSpeaking}
                     lastLine={npcState.lastLine}
                     lookAtCenter

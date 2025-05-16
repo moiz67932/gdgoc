@@ -19,19 +19,14 @@ export default function NPC({
   url,
   name,
   description,
-  emotionScore: initialScore = 5, // Default to middle emotion (5)
+  emotionScore: initialScore = 0.5,
   lookAtCenter = true,
   isSpeaking = false,
   lastLine,
 }: NPCProps) {
   const { scene } = useGLTF(url);
   const groupRef = useRef<Group>(null);
-  const [emotionScore, setEmotionScore] = useState(initialScore);
-
-  // Update emotion score when prop changes
-  useEffect(() => {
-    setEmotionScore(initialScore);
-  }, [initialScore]);
+  const [emotionScore] = useState(initialScore);
 
   // Enable shadows on NPC model
   useEffect(() => {
@@ -50,39 +45,13 @@ export default function NPC({
   const x = radius * Math.sin(angle);
   const z = 3.5 - radius * Math.cos(angle);
 
-  // Map emotionScore (1-9) to emoji
-  function emojiFor(v: number) {
-    switch (v) {
-      case 1:
-        return "😭"; // devastated
-      case 2:
-        return "😢"; // sad
-      case 3:
-        return "🙁"; // upset
-      case 4:
-        return "😕"; // concerned
-      case 5:
-        return "😐"; // neutral
-      case 6:
-        return "🙂"; // content
-      case 7:
-        return "😊"; // happy
-      case 8:
-        return "😄"; // delighted
-      case 9:
-        return "🥰"; // ecstatic
-      default:
-        return "😐"; // fallback to neutral
-    }
-  }
+  const color = `hsl(${emotionScore * 120}, 100%, 50%)`;
 
-  // Calculate color based on emotion (red for negative, green for positive)
-  const getEmotionColor = (score: number) => {
-    const hue = score <= 5 ? 0 : 120; // Red for 1-5, Green for 6-9
-    const saturation = 100;
-    const lightness = 50;
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-  };
+  let moodEmoji = "😐";
+  if (emotionScore < 0.2) moodEmoji = "😡";
+  else if (emotionScore < 0.5) moodEmoji = "😟";
+  else if (emotionScore < 0.75) moodEmoji = "🙂";
+  else moodEmoji = "😄";
 
   let rotationY = 0;
   if (index === 0) rotationY = Math.PI / 2;
@@ -90,6 +59,20 @@ export default function NPC({
   else if (index === 2) rotationY = 0;
   else if (index === 3) rotationY = -Math.PI / 4;
   else if (index === 4) rotationY = -Math.PI / 2;
+
+  // Map emotionScore (1-10) to emoji (new scale)
+  function emojiFor(v: number) {
+    if (v <= 1) return "😄"; // delighted
+    if (v <= 2) return "😊"; // happy
+    if (v <= 3) return "🙂"; // content
+    if (v <= 4) return "😐"; // neutral
+    if (v <= 5) return "😕"; // concerned
+    if (v <= 6) return "😟"; // frustrated
+    if (v <= 7) return "🙁"; // upset
+    if (v <= 8) return "😢"; // sad
+    if (v <= 9) return "😠"; // angry
+    return "😭"; // devastated
+  }
 
   return (
     <group
@@ -153,10 +136,12 @@ export default function NPC({
             >
               <div
                 style={{
-                  width: `${((emotionScore - 1) / 8) * 100}%`,
+                  width: `${(emotionScore / 10) * 100}%`,
                   height: "100%",
-                  backgroundColor: getEmotionColor(emotionScore),
-                  transition: "all 0.3s ease-in-out",
+                  backgroundColor: `hsl(${
+                    (1 - emotionScore / 10) * 120
+                  }, 100%, 50%)`,
+                  transition: "width 0.2s",
                 }}
               />
             </div>
